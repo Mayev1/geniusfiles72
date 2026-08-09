@@ -46,7 +46,9 @@ export type StorageRootId =
   | "music"
   | "sdcard"
   /** Dynamically-detected external volume, e.g. `ext:XXXX-XXXX` (SD card or USB OTG). */
-  | `ext:${string}`;
+  | `ext:${string}`
+  /** Racine libre pointant vers un chemin absolu, ex. `abs:/data/.../trash`. */
+  | `abs:${string}`;
 
 export type StorageRoot = {
   id: StorageRootId;

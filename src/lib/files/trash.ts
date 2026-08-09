@@ -43,6 +43,8 @@ export type TrashItem = {
   msUntilPurge?: number;
   /** True when the original parent directory still exists (native only). */
   originalParentExists?: boolean;
+  /** Chemin absolu réel du fichier dans la corbeille (Android uniquement). */
+  trashPath?: string;
 };
 
 export type TrashListing = {
@@ -142,6 +144,7 @@ function toItem(n: NativeTrashItem, retentionDays: number): TrashItem {
     size: n.size ?? 0,
     deletedAt: n.deletedAt,
     msUntilPurge: purgeAt != null ? Math.max(0, purgeAt - Date.now()) : undefined,
+    trashPath: n.trashPath,
   };
 }
 
