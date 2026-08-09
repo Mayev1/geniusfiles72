@@ -29,9 +29,15 @@ export type ExtraTrack = {
   baseClip?: AudioClip;
   /** Décalage d'origine, restauré par « Désynchroniser ». */
   baseOffset?: number;
+  /**
+   * BPM saisi manuellement par l'utilisateur (jamais détecté).
+   * Absent = valeur par défaut de l'éditeur.
+   */
+  bpm?: number;
   /** État de synchronisation (absent = piste indépendante). */
   sync?: TrackSync;
 };
+
 
 export function trackId(): string {
   return `tr_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36)}`;
