@@ -18,14 +18,14 @@ export const GENIUSFILES_LOGO_URL = "/brand/geniusfiles-logo.png";
 /**
  * Déclinaisons du master, réduites en lanczos3 à la compilation des assets.
  *
- * Le master 1024² pèse ~1 Mo : le décoder au démarrage pour l'afficher à
+ * Le master 1059² pèse ~1 Mo : le décoder au démarrage pour l'afficher à
  * 28 px coûtait du CPU, de la mémoire et de la bande passante sur le chemin
  * critique. Le navigateur choisit désormais la variante immédiatement
  * supérieure à la taille physique demandée (`sizes`), donc aucun
  * agrandissement, aucune perte de netteté, et un décodage quasi instantané.
  */
 export const GENIUSFILES_LOGO_SRCSET =
-  "/brand/geniusfiles-logo-64.png 64w, /brand/geniusfiles-logo-128.png 128w, /brand/geniusfiles-logo-256.png 256w, /brand/geniusfiles-logo-512.png 512w, /brand/geniusfiles-logo.png 1024w";
+  "/brand/geniusfiles-logo-64.png 64w, /brand/geniusfiles-logo-128.png 128w, /brand/geniusfiles-logo-256.png 256w, /brand/geniusfiles-logo-512.png 512w, /brand/geniusfiles-logo.png 1059w";
 
 interface LogoProps {
   className?: string;
