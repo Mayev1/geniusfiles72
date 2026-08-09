@@ -14,7 +14,15 @@ import {
   useSyncExternalStore,
   type FormEvent,
 } from "react";
-import { ArrowUp, Square, History, PenSquare, ShieldCheck, MessagesSquare } from "lucide-react";
+import {
+  ArrowUp,
+  Square,
+  History,
+  PenSquare,
+  ShieldCheck,
+  MessagesSquare,
+  WifiOff,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AssistantMarkdown } from "@/components/assistant/AssistantMarkdown";
 import { ConversationsSheet } from "@/components/assistant/ConversationsSheet";
