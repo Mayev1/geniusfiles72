@@ -618,7 +618,7 @@ function CategoryPage() {
           break;
       }
     },
-    [doShare, navigate],
+    [doShare],
   );
 
   const viewerEntries = useMemo(() => sorted.filter((f) => canOpenInViewer(f)), [sorted]);

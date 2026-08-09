@@ -1017,7 +1017,7 @@ function FilesPage() {
           break;
       }
     },
-    [openDetails, runShare, path, routerNavigate],
+    [openDetails, runShare, path],
   );
 
   return (

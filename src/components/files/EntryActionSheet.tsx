@@ -10,7 +10,7 @@ import {
   Share2,
   SquarePen,
   Trash2,
-    Waves,
+  Waves,
 } from "lucide-react";
 import type { FileEntry } from "@/lib/files/types";
 import { FileIcon } from "./FileIcon";

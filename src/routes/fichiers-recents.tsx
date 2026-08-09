@@ -312,7 +312,7 @@ function AddedFilesPage() {
           break;
       }
     },
-    [doShare, navigate],
+    [doShare],
   );
 
   return (
