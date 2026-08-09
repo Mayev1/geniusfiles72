@@ -14,7 +14,15 @@ import {
   useSyncExternalStore,
   type FormEvent,
 } from "react";
-import { ArrowUp, Square, Menu, PenSquare, ShieldCheck, MessagesSquare, WifiOff } from "lucide-react";
+import {
+  ArrowUp,
+  Square,
+  Menu,
+  PenSquare,
+  ShieldCheck,
+  MessagesSquare,
+  WifiOff,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AssistantMarkdown } from "@/components/assistant/AssistantMarkdown";
 import { AssistantDrawer } from "@/components/assistant/AssistantDrawer";
@@ -409,7 +417,8 @@ function AssistantPage() {
     const running = [...parts].reverse().find(isRunning);
     const failed = parts.find((p) => p.state === "output-error" || Boolean(p.errorText));
     const hasText = all.some(
-      (p) => (p as { type?: string; text?: string })?.type === "text" && !!(p as { text?: string }).text,
+      (p) =>
+        (p as { type?: string; text?: string })?.type === "text" && !!(p as { text?: string }).text,
     );
     const finished = !isBusy;
 
