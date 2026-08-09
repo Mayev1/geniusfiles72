@@ -204,52 +204,105 @@ function CleanerPage() {
 
   const activeCategory = openCategory && scan ? scan.categories[openCategory] : null;
 
+  /* Répartition de l'espace récupérable par catégorie — visualisation
+     immédiate de « où » se trouve le gain, avant toute action. */
+  const shares = useMemo(() => {
+    if (!scan || totalReclaimable <= 0) return [];
+    return CATEGORY_ORDER.map((key) => scan.categories[key])
+      .filter((c) => c.bytes > 0)
+      .sort((a, b) => b.bytes - a.bytes)
+      .map((c) => ({
+        key: c.key,
+        label: c.label,
+        bytes: c.bytes,
+        pct: Math.max(2, Math.round((c.bytes / totalReclaimable) * 100)),
+      }));
+  }, [scan, totalReclaimable]);
+
   return (
     <AppShell>
-      {/* En-tête de page — même hiérarchie que les autres écrans */}
-      <div className="flex items-start gap-3 pt-1 pb-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-display text-[26px] font-bold leading-tight tracking-tight">
-            Nettoyeur
-          </h1>
-          <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
-            Analyse locale · rien n'est supprimé sans votre accord
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setTick((t) => t + 1)}
-          aria-label="Relancer l'analyse"
-          className="gf-press flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground"
-        >
-          <RefreshCw className={`h-[18px] w-[18px] ${scanning ? "animate-spin" : ""}`} />
-        </button>
-      </div>
+      <PageHeader
+        title="Nettoyeur"
+        subtitle="Analyse locale · rien n'est supprimé sans votre accord"
+        action={
+          <button
+            type="button"
+            onClick={() => setTick((t) => t + 1)}
+            aria-label="Relancer l'analyse"
+            className="gf-press flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground"
+          >
+            <RefreshCw className={`h-[18px] w-[18px] ${scanning ? "animate-spin" : ""}`} />
+          </button>
+        }
+      />
 
-      <StorageScopePicker roots={roots} value={scope} onChange={setScope} />
+      <div className="pt-3">
+        <StorageScopePicker roots={roots} value={scope} onChange={setScope} />
+      </div>
 
       {/* Statistiques principales — gain de stockage mis en avant */}
       <div className="gf-card mt-3 p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Espace récupérable
-        </p>
-        <p className="mt-1.5 font-display text-[34px] font-bold leading-none text-primary">
-          {formatSize(totalReclaimable)}
-        </p>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              Espace récupérable
+            </p>
+            <p className="mt-1.5 truncate font-display text-[36px] font-bold leading-none text-primary">
+              {formatSize(totalReclaimable)}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-primary-softer px-2.5 py-1 text-[11px] font-semibold text-primary">
+            {scanning ? "Analyse…" : "Prêt"}
+          </span>
+        </div>
+
+        {/* Barre de répartition par catégorie */}
+        {shares.length > 0 ? (
+          <>
+            <div className="mt-3.5 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3">
+              {shares.map((s, i) => (
+                <span
+                  key={s.key}
+                  className="h-full"
+                  style={{
+                    width: `${s.pct}%`,
+                    opacity: 1 - Math.min(0.6, i * 0.12),
+                    background: "var(--color-primary, hsl(var(--primary)))",
+                  }}
+                />
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              {shares.slice(0, 4).map((s) => (
+                <span
+                  key={s.key}
+                  className="inline-flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground"
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                  <span className="truncate">{s.label}</span>
+                  <span className="shrink-0 font-semibold text-foreground">
+                    {formatSize(s.bytes)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </>
+        ) : null}
+
         <div className="mt-3.5 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+          <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-2.5">
             <p className="text-[17px] font-semibold leading-none">
               {totalItems.toLocaleString("fr-FR")}
             </p>
-            <p className="mt-1 text-[12px] text-muted-foreground">
+            <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
               élément{totalItems > 1 ? "s" : ""} détecté{totalItems > 1 ? "s" : ""}
             </p>
           </div>
-          <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
+          <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-2.5">
             <p className="text-[17px] font-semibold leading-none">
               {(scan?.scannedFolders ?? 0).toLocaleString("fr-FR")}
             </p>
-            <p className="mt-1 text-[12px] text-muted-foreground">dossiers analysés</p>
+            <p className="mt-1 text-[12px] leading-snug text-muted-foreground">dossiers analysés</p>
           </div>
         </div>
 
@@ -264,6 +317,7 @@ function CleanerPage() {
           </div>
         ) : null}
       </div>
+
 
       {permission === "denied" ? (
         <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-[12.5px] leading-relaxed text-foreground">
