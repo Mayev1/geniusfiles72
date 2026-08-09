@@ -456,30 +456,34 @@ function AssistantPage() {
         className="flex min-h-0 flex-1 flex-col overflow-x-hidden"
         style={{ marginBottom: keyboardInset || undefined }}
       >
-        <header className="flex shrink-0 items-center gap-3 px-4 pb-2 pt-1">
-          <div className="min-w-0 flex-1">
-            <h1 className="font-display truncate text-[22px] font-bold leading-tight tracking-tight text-foreground">
-              Genius AI
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setHistoryOpen(true)}
-              aria-label="Historique des conversations"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground transition-all duration-150 hover:text-foreground active:scale-95"
-            >
-              <History className="h-[18px] w-[18px]" />
-            </button>
-            <button
-              type="button"
-              onClick={startNew}
-              aria-label="Nouvelle conversation"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground transition-all duration-150 hover:text-foreground active:scale-95"
-            >
-              <PenSquare className="h-[18px] w-[18px]" />
-            </button>
-          </div>
+        <header
+          className="flex shrink-0 items-center gap-2 border-b border-border/40 px-2.5 pb-2.5"
+          style={{
+            paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)",
+            paddingLeft: "calc(env(safe-area-inset-left, 0px) + 0.625rem)",
+            paddingRight: "calc(env(safe-area-inset-right, 0px) + 0.625rem)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Ouvrir le menu des conversations"
+            aria-expanded={menuOpen}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-foreground transition-all duration-150 hover:bg-surface-2 active:scale-95"
+          >
+            <Menu className="h-[21px] w-[21px]" strokeWidth={2.1} />
+          </button>
+          <h1 className="font-display min-w-0 flex-1 truncate text-[19px] font-bold leading-tight tracking-tight text-foreground">
+            Genius AI
+          </h1>
+          <button
+            type="button"
+            onClick={startNew}
+            aria-label="Nouvelle conversation"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-foreground transition-all duration-150 hover:bg-surface-2 active:scale-95"
+          >
+            <PenSquare className="h-[19px] w-[19px]" strokeWidth={2.1} />
+          </button>
         </header>
 
         <div className="gf-chat-safe min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain scroll-smooth px-4 pb-5">
@@ -491,7 +495,7 @@ function AssistantPage() {
 
           {offlineBlocked ? <ChatOfflineState onRetry={() => handleSubmit()} /> : null}
 
-          <StatusLine stage={stage} />
+          <PipelineTrace steps={pipeline} />
 
           {error ? (
             <div className="gf-chat-safe rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
@@ -568,9 +572,9 @@ function AssistantPage() {
         </div>
       </div>
 
-      <ConversationsSheet
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
+      <AssistantDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
         activeId={conversationId}
         onOpenConversation={openConversation}
         onNewConversation={startNew}
