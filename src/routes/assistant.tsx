@@ -35,11 +35,7 @@ import {
 import { useRoots } from "@/lib/fs/useRoots";
 import { useViewportInset } from "@/hooks/use-viewport-inset";
 import { errorMessage } from "@/lib/errors/humanize";
-import {
-  chatOfflineCopy,
-  EMPTY_ILLUSTRATION_FRAME,
-  EMPTY_ILLUSTRATION_SRC,
-} from "@/lib/copy/empty-illustrations";
+import { chatOfflineCopy } from "@/lib/copy/empty-illustrations";
 
 export const Route = createFileRoute("/assistant")({
   head: () => ({
@@ -180,30 +176,19 @@ function useIsOnline(): boolean {
 /**
  * État « hors connexion » affiché dans la conversation.
  *
- * Réutilise l'illustration « Erreur réseau » déjà embarquée (aucune
- * ressource supplémentaire) et le même style typographique que les autres
- * écrans d'état. Apparition discrète : léger fondu + translation verticale.
+ * Icône du système d'icônes de l'application (aucune ressource graphique)
+ * et même style typographique que les autres écrans d'état. Apparition
+ * discrète : léger fondu.
  */
 function ChatOfflineState({ onRetry }: { onRetry?: () => void }) {
   const copy = chatOfflineCopy();
-  const src = EMPTY_ILLUSTRATION_SRC.network;
-  const frame = EMPTY_ILLUSTRATION_FRAME.network;
   return (
     <div className="animate-fade-in flex flex-col items-center px-4 py-2 text-center">
-      {src && frame ? (
-        <div className="relative aspect-square w-[min(42vw,132px)] shrink-0 overflow-hidden">
-          <img
-            src={src}
-            alt={copy.alt}
-            width={1024}
-            height={1536}
-            decoding="async"
-            draggable={false}
-            style={{ left: `${frame.left}%`, top: `${frame.top}%`, width: `${frame.width}%` }}
-            className="pointer-events-none absolute h-auto max-w-none select-none"
-          />
-        </div>
-      ) : null}
+      <WifiOff
+        aria-hidden="true"
+        strokeWidth={1.5}
+        className="h-10 w-10 shrink-0 text-muted-foreground"
+      />
       <div className="mt-2 flex max-w-[320px] flex-col items-center gap-1.5">
         <p className="text-[17px] font-semibold leading-snug text-foreground">{copy.title}</p>
         <p className="text-[13.5px] leading-relaxed text-muted-foreground">{copy.description}</p>

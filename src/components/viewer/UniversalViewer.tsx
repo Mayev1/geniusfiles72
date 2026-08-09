@@ -79,8 +79,7 @@ export type ViewerAction =
   | "compress"
   | "info"
   | "openFolder"
-  | "openWith"
-  | "editVideo";
+  | "openWith";
 
 const AUTO_HIDE_MS = 3000;
 
@@ -296,16 +295,6 @@ export function UniversalViewer({
         />
         <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Actions">
           <div className="flex flex-col">
-            {kind === "video" ? (
-              <>
-                <MenuRow
-                  icon={SquarePen}
-                  label="Modifier la vidéo"
-                  onClick={() => fireP("editVideo")}
-                />
-                <div className="my-1 h-px bg-border/40" />
-              </>
-            ) : null}
             <MenuRow icon={Info} label="Informations" onClick={() => fireP("info")} />
             <MenuRow
               icon={ExternalLink}
