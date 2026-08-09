@@ -78,7 +78,15 @@ import {
   type ExtraTrack,
 } from "@/lib/audio/tracks";
 import { CENSOR_DEFAULTS, type CensorStyle } from "@/lib/audio/censor";
-import { planSync, stretchWsola, tempoOfAsync, type SyncInput } from "@/lib/audio/sync";
+import {
+  DEFAULT_BPM,
+  MAX_BPM,
+  MIN_BPM,
+  normalizeBpm,
+  planSync,
+  stretchWsola,
+  type SyncInput,
+} from "@/lib/audio/sync";
 import { Waveform, type WaveView } from "./Waveform";
 import { TrackLanes, type LaneId } from "./TrackLanes";
 
@@ -219,6 +227,14 @@ export function AudioEditor({
   const [mainMuted, setMainMuted] = useState(false);
   const [selectedLane, setSelectedLane] = useState<LaneId>("main");
   const [trackPickerOpen, setTrackPickerOpen] = useState(false);
+  /**
+   * Synchronisation : piste maître et BPM **manuel** de la piste
+   * principale. Les BPM des pistes ajoutées vivent sur la piste elle-même
+   * (donc dans l'historique). Aucun BPM n'est jamais détecté.
+   */
+  const [masterLane, setMasterLane] = useState<LaneId>("main");
+  const [mainBpm, setMainBpm] = useState<number>(DEFAULT_BPM);
+
   /**
    * Historique unifié : chaque étape restaure ensemble l'audio (opérations,
    * pistes) et l'état visuel (curseur, sélection, fenêtre de zoom).
@@ -381,6 +397,8 @@ export function AudioEditor({
     position: number;
     view: WaveView;
     selectedLane: LaneId;
+    masterLane: LaneId;
+    mainBpm: number;
   };
   const historyRef = useRef<HistoryStep[]>([]);
   const [hIndex, setHIndex] = useState(0);
@@ -393,6 +411,8 @@ export function AudioEditor({
       a.cursor === b.cursor &&
       a.tracks === b.tracks &&
       a.selectedLane === b.selectedLane &&
+      a.masterLane === b.masterLane &&
+      a.mainBpm === b.mainBpm &&
       Math.abs(a.position - b.position) < 0.001 &&
       Math.abs(a.view.from - b.view.from) < 0.001 &&
       Math.abs(a.view.to - b.view.to) < 0.001 &&
@@ -408,7 +428,16 @@ export function AudioEditor({
   // devient une étape. Les gestes continus sont regroupés par une courte
   // pause ; les actions structurelles sont enregistrées immédiatement.
   useEffect(() => {
-    const step: HistoryStep = { cursor, tracks, selection, position, view, selectedLane };
+    const step: HistoryStep = {
+      cursor,
+      tracks,
+      selection,
+      position,
+      view,
+      selectedLane,
+      masterLane,
+      mainBpm,
+    };
     if (historyRef.current.length === 0) {
       historyRef.current = [step];
       setHIndex(0);
@@ -437,7 +466,18 @@ export function AudioEditor({
     if (playing) return;
     const t = window.setTimeout(commit, 320);
     return () => window.clearTimeout(t);
-  }, [cursor, tracks, selection, position, view, selectedLane, playing, sameStep]);
+  }, [
+    cursor,
+    tracks,
+    selection,
+    position,
+    view,
+    selectedLane,
+    masterLane,
+    mainBpm,
+    playing,
+    sameStep,
+  ]);
 
   const applyStep = useCallback((s: HistoryStep) => {
     applyingRef.current = true;
@@ -449,6 +489,8 @@ export function AudioEditor({
     setTracks(s.tracks);
     setSelection(s.selection);
     setSelectedLane(s.selectedLane);
+    setMasterLane(s.masterLane);
+    setMainBpm(s.mainBpm);
     positionRef.current = s.position;
     setPosition(s.position);
     setView(s.view);
@@ -938,47 +980,54 @@ export function AudioEditor({
     setTracks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   }, []);
 
-  /* ---------- synchronisation multipiste (façon « Sync » DJ) ---------- */
+  /* ---------- synchronisation multipiste (BPM manuel) ---------- */
   /**
-   * La synchronisation est réelle : les pistes cibles sont ré-étirées
-   * (WSOLA, hauteur préservée) depuis leur audio d'origine puis calées sur
-   * la grille de battements du maître. La lecture partageant déjà une
-   * horloge audio unique, elles démarrent, avancent, se mettent en pause et
-   * se repositionnent ensemble sans dérive possible.
+   * Le tempo n'est jamais deviné : l'utilisateur saisit le BPM de chaque
+   * piste. La synchronisation ré-étire réellement l'audio des pistes
+   * cochées (WSOLA, hauteur préservée) depuis leur source d'origine, avec
+   * le facteur exact `bpm_piste / bpm_maître`. La lecture partageant une
+   * horloge audio unique, les pistes démarrent, avancent, se mettent en
+   * pause et se repositionnent ensemble sans dérive possible.
    */
-  const [masterLane, setMasterLane] = useState<LaneId>("main");
   const [syncTargets, setSyncTargets] = useState<LaneId[]>([]);
   const [syncing, setSyncing] = useState(false);
-  const [bpmMap, setBpmMap] = useState<Record<string, number | null>>({});
-  const [mainSync, setMainSync] = useState<{ bpm: number | null; at: number } | null>(null);
+
+  /** BPM manuel d'une piste (jamais détecté). */
+  const bpmOf = useCallback(
+    (id: LaneId): number => {
+      if (id === "main") return mainBpm;
+      const t = tracks.find((x) => x.id === id);
+      return t?.bpm ?? DEFAULT_BPM;
+    },
+    [mainBpm, tracks],
+  );
+
+  const bpmMap = useMemo(() => {
+    const map: Record<string, number> = { main: mainBpm };
+    for (const t of tracks) map[t.id] = t.bpm ?? DEFAULT_BPM;
+    return map;
+  }, [mainBpm, tracks]);
+
+  /** Saisie manuelle du BPM : validée puis mémorisée dans l'historique. */
+  const setLaneBpm = useCallback(
+    (id: LaneId, value: number) => {
+      const bpm = normalizeBpm(value);
+      if (bpm == null) {
+        toast.error(`Le BPM doit être compris entre ${MIN_BPM} et ${MAX_BPM}.`);
+        return;
+      }
+      markStructural();
+      if (id === "main") setMainBpm(bpm);
+      else setTracks((prev) => prev.map((t) => (t.id === id ? { ...t, bpm } : t)));
+    },
+    [markStructural],
+  );
 
   // La piste maître supprimée retombe sur la piste principale.
   useEffect(() => {
     if (masterLane !== "main" && !tracks.some((t) => t.id === masterLane)) setMasterLane("main");
     setSyncTargets((prev) => prev.filter((id) => id === "main" || tracks.some((t) => t.id === id)));
   }, [tracks, masterLane]);
-
-  // Analyse de tempo en tâche de fond dès que le panneau Pistes est ouvert.
-  useEffect(() => {
-    if (tool !== "tracks" || !clip) return;
-    let cancelled = false;
-    const lanes: [LaneId, AudioClip][] = [
-      ["main", clip],
-      ...tracks.map((t) => [t.id, t.clip] as [LaneId, AudioClip]),
-    ];
-    void (async () => {
-      for (const [id, c] of lanes) {
-        if (cancelled) return;
-        if (c.length === 0) continue;
-        const info = await tempoOfAsync(c);
-        if (cancelled) return;
-        setBpmMap((prev) => (prev[id] === info.bpm ? prev : { ...prev, [id]: info.bpm }));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tool, clip, tracks]);
 
   const toggleSyncTarget = useCallback((id: LaneId) => {
     setSyncTargets((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -1002,11 +1051,11 @@ export function AudioEditor({
       const t = findTrack(id);
       return t ? (t.baseClip ?? t.clip) : null;
     };
-    const sourceOffsetOf = (id: LaneId): number => {
-      if (id === "main") return 0;
-      const t = findTrack(id);
-      return t ? (t.baseOffset ?? t.offset) : 0;
-    };
+    const masterBpm = normalizeBpm(bpmOf(masterLane));
+    if (masterBpm == null) {
+      toast.error("Renseignez d'abord le BPM de la piste maître.");
+      return;
+    }
     const masterClip = sourceClipOf(masterLane);
     if (!masterClip || masterClip.length === 0) {
       toast.error("La piste maître est vide.");
@@ -1014,27 +1063,24 @@ export function AudioEditor({
     }
 
     setSyncing(true);
-    setWorking("Analyse du tempo…");
+    setWorking("Alignement des pistes…");
     try {
-      const masterTempo = await tempoOfAsync(masterClip);
       const inputs: SyncInput[] = [];
       for (const id of targets) {
         const c = sourceClipOf(id);
         if (!c || c.length === 0) continue;
-        inputs.push({ id, clip: c, offset: sourceOffsetOf(id), tempo: await tempoOfAsync(c) });
+        const bpm = normalizeBpm(bpmOf(id));
+        if (bpm == null) continue;
+        const t = findTrack(id);
+        inputs.push({ id, offset: id === "main" ? 0 : (t?.baseOffset ?? t?.offset ?? 0), bpm });
       }
       if (inputs.length === 0) {
-        toast.error("Aucune piste exploitable à synchroniser.");
+        toast.error("Renseignez le BPM des pistes à synchroniser.");
         return;
       }
-      const masterOffset = masterLane === "main" ? 0 : (findTrack(masterLane)?.offset ?? 0);
-      const plans = planSync(
-        { id: masterLane, clip: masterClip, offset: masterOffset, tempo: masterTempo },
-        inputs,
-      );
+      const plans = planSync({ id: masterLane, offset: 0, bpm: masterBpm }, inputs);
       const byId = new Map(plans.map((p) => [p.id, p]));
 
-      setWorking("Alignement des pistes…");
       await new Promise((r) => setTimeout(r, 0));
 
       const nextTracks = tracks.map((t) => {
@@ -1048,13 +1094,13 @@ export function AudioEditor({
           baseClip: base,
           baseOffset,
           clip: stretched,
-          offset: p.offset,
+          offset: baseOffset,
+          bpm: p.sourceBpm,
           sync: {
             sourceBpm: p.sourceBpm,
             targetBpm: p.targetBpm,
             ratio: p.ratio,
             masterId: masterLane,
-            timeOnly: p.timeOnly,
           },
         } satisfies ExtraTrack;
       });
@@ -1067,25 +1113,20 @@ export function AudioEditor({
       // Piste principale synchronisée : vrai changement de tempo, via une
       // opération « vitesse » à hauteur préservée (donc annulable).
       const mainPlan = byId.get("main");
-      if (mainPlan && !mainPlan.timeOnly && Math.abs(mainPlan.ratio - 1) > 0.0005) {
+      if (mainPlan && Math.abs(mainPlan.ratio - 1) > 0.0005) {
         pushOps({ id: opId(), type: "speed", factor: 1 / mainPlan.ratio, keepPitch: true });
-        setMainSync({ bpm: mainPlan.targetBpm, at: cursorRef.current + 1 });
+        setMainBpm(mainPlan.targetBpm);
       }
       playerRef.current?.invalidate();
 
-      const unknown = plans.filter((p) => p.timeOnly).length;
-      toast.success(
-        unknown > 0
-          ? `${plans.length} piste(s) alignée(s) — tempo indétectable sur ${unknown}, alignement temporel seul.`
-          : `${plans.length} piste(s) synchronisée(s) à ${masterTempo.bpm ? Math.round(masterTempo.bpm) : "?"} BPM.`,
-      );
+      toast.success(`${plans.length} piste(s) synchronisée(s) à ${masterBpm} BPM.`);
     } catch {
       toast.error("Synchronisation impossible sur ces pistes.");
     } finally {
       setWorking(null);
       setSyncing(false);
     }
-  }, [clip, markStructural, masterLane, pushOps, syncTargets, syncing, tracks]);
+  }, [bpmOf, clip, markStructural, masterLane, pushOps, syncTargets, syncing, tracks]);
 
   /** Rend leur indépendance aux pistes synchronisées (audio d'origine). */
   const clearSync = useCallback(() => {
@@ -1107,12 +1148,53 @@ export function AudioEditor({
       ),
     );
     playerRef.current?.invalidate();
-    setMainSync(null);
     toast.success("Pistes désynchronisées.");
   }, [markStructural]);
 
-  const syncedCount =
-    tracks.filter((t) => t.sync).length + (mainSync && cursor >= mainSync.at ? 1 : 0);
+  /**
+   * Un BPM corrigé après coup ne laisse jamais une piste mal alignée :
+   * dès que le tempo saisi (piste ou maître) ne correspond plus au facteur
+   * appliqué, l'audio est ré-étiré depuis la source. Regroupé par une
+   * courte pause pour ne pas recalculer à chaque frappe.
+   */
+  useEffect(() => {
+    const stale = tracks.filter((t) => {
+      if (!t.sync) return false;
+      const src = t.bpm ?? DEFAULT_BPM;
+      const target = bpmMap[t.sync.masterId] ?? t.sync.targetBpm;
+      return (
+        Math.abs(src - t.sync.sourceBpm) > 0.001 || Math.abs(target - t.sync.targetBpm) > 0.001
+      );
+    });
+    if (stale.length === 0) return;
+    const timer = window.setTimeout(() => {
+      const ids = new Set(stale.map((t) => t.id));
+      setTracks((prev) =>
+        prev.map((t) => {
+          if (!ids.has(t.id) || !t.sync) return t;
+          const src = normalizeBpm(t.bpm ?? DEFAULT_BPM);
+          const target = normalizeBpm(bpmMap[t.sync.masterId] ?? t.sync.targetBpm);
+          if (src == null || target == null) return t;
+          const base = t.baseClip ?? t.clip;
+          const baseOffset = t.baseOffset ?? t.offset;
+          const ratio = src / target;
+          const safe = Number.isFinite(ratio) && ratio > 0.1 && ratio < 10 ? ratio : 1;
+          return {
+            ...t,
+            baseClip: base,
+            baseOffset,
+            clip: Math.abs(safe - 1) < 0.0005 ? base : stretchWsola(base, safe),
+            offset: baseOffset,
+            sync: { ...t.sync, sourceBpm: src, targetBpm: target, ratio: safe },
+          };
+        }),
+      );
+      playerRef.current?.invalidate();
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [bpmMap, tracks]);
+
+  const syncedCount = tracks.filter((t) => t.sync).length;
 
   /** Coupe / supprime / rend muette la portion sélectionnée sur une piste. */
   const editLane = useCallback(
@@ -1413,6 +1495,7 @@ export function AudioEditor({
           onClearSync={clearSync}
           syncing={syncing}
           bpm={bpmMap}
+          onBpm={setLaneBpm}
           syncedCount={syncedCount}
         />
       ) : null}
