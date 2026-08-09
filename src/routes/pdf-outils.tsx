@@ -47,6 +47,7 @@ import {
 } from "@/lib/pdf/signatures";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   BottomSheet,
@@ -156,42 +157,6 @@ type Tool = {
   ready: boolean;
   featured?: boolean;
 };
-
-/* Raccourcis mis en avant : les 4 usages les plus fréquents. */
-const QUICK_TOOLS: Tool[] = [
-  {
-    id: "images-to-pdf",
-    label: "Images",
-    desc: "Créer un PDF depuis des photos",
-    icon: ImagePlus,
-    ready: true,
-    featured: true,
-  },
-  {
-    id: "scan",
-    label: "Scanner",
-    desc: "Capture + amélioration + PDF",
-    icon: ScanLine,
-    ready: true,
-    featured: true,
-  },
-  {
-    id: "merge",
-    label: "Fusionner",
-    desc: "Assembler plusieurs PDF",
-    icon: Combine,
-    ready: true,
-    featured: true,
-  },
-  {
-    id: "compress",
-    label: "Réduire",
-    desc: "Compresser un PDF",
-    icon: Minimize2,
-    ready: true,
-    featured: true,
-  },
-];
 
 /* Modifier & organiser — le groupe le plus utilisé après les raccourcis. */
 const EDIT_TOOLS: Tool[] = [
@@ -332,7 +297,7 @@ function PdfToolsPage() {
 
   return (
     <AppShell>
-      <QuickRow tools={QUICK_TOOLS} onOpen={setTool} />
+      <PageHeader title="Outils PDF" subtitle="Modifier, créer, annoter et extraire vos PDF." />
 
       <ToolSection title="Modifier un PDF" tools={EDIT_TOOLS} onOpen={setTool} />
       <ToolSection title="Créer et convertir" tools={CREATE_TOOLS} onOpen={setTool} />
@@ -343,31 +308,6 @@ function PdfToolsPage() {
         <ToolSheet tool={tool} onClose={() => setTool(null)} />
       </BottomSheetDefaultsProvider>
     </AppShell>
-  );
-}
-
-/** Raccourcis : 4 tuiles compactes en une seule rangée, toujours visibles
- *  au premier écran. */
-function QuickRow({ tools, onOpen }: { tools: Tool[]; onOpen: (id: ToolId) => void }) {
-  return (
-    <div className="mt-2 grid grid-cols-4 gap-2">
-      {tools.map((t) => (
-        <button
-          key={`quick-${t.id}`}
-          type="button"
-          onClick={() => onOpen(t.id)}
-          aria-label={t.label}
-          className="card-surface flex min-w-0 flex-col items-center gap-1.5 px-1.5 py-3 text-center transition-transform active:scale-[0.96]"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-            <t.icon className="h-5 w-5" />
-          </span>
-          <span className="w-full break-words text-[11px] font-medium leading-tight text-foreground">
-            {t.label}
-          </span>
-        </button>
-      ))}
-    </div>
   );
 }
 

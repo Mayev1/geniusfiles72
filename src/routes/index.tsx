@@ -42,6 +42,8 @@ import { recordSnapshot, loadSnapshots, type FreeSnapshot } from "@/lib/files/sn
 import { usageTrash, autoPurgeTrash } from "@/lib/files/trash";
 import { ResumeBanner } from "@/components/jobs/ResumeBanner";
 import { AppShell } from "@/components/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
+
 import { markStartupSignal } from "@/lib/startup/boot";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -1022,7 +1024,6 @@ function FilesPage() {
 
   return (
     <AppShell>
-      {!path ? <div aria-hidden className="pt-safe" /> : null}
       {path ? (
         <FilesTopBar
           title={currentTitle}
@@ -1629,30 +1630,26 @@ function RootView({
   ];
 
   return (
-    <div className="flex flex-col gap-5 pb-6 pt-3">
-      {/* Greeting + recherche compacte */}
-      <header className="animate-fade-in flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[21px] font-semibold leading-tight tracking-tight">
-            {greeting}
-          </h1>
-          <p className="truncate text-[12.5px] text-muted-foreground">
-            Gérez vos fichiers plus rapidement.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            // Accueil : recherche globale (tous les stockages).
-            setSearchScope(null);
-            navigate({ to: "/recherche" });
-          }}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-primary transition-transform duration-100 ease-out active:scale-95 hover:border-primary/40"
-          aria-label="Rechercher"
-        >
-          <Search className="h-[19px] w-[19px]" strokeWidth={2.2} />
-        </button>
-      </header>
+    <div className="flex flex-col gap-5 pb-6">
+      {/* Salutation = titre principal de la page, en en-tête collant. */}
+      <PageHeader
+        title={greeting}
+        subtitle="Gérez vos fichiers plus rapidement."
+        action={
+          <button
+            type="button"
+            onClick={() => {
+              // Accueil : recherche globale (tous les stockages).
+              setSearchScope(null);
+              navigate({ to: "/recherche" });
+            }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-primary transition-transform duration-100 ease-out active:scale-95 hover:border-primary/40"
+            aria-label="Rechercher"
+          >
+            <Search className="h-[19px] w-[19px]" strokeWidth={2.2} />
+          </button>
+        }
+      />
 
       <ResumeBanner />
 

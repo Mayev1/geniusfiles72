@@ -19,6 +19,7 @@ import {
   ArrowRight,
   CalendarClock,
   Check,
+  CheckCircle2,
   ChevronRight,
   Copy,
   History,
@@ -30,12 +31,13 @@ import {
   Wand2,
   Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { errorMessage } from "@/lib/errors/humanize";
 import {
   BottomSheet,
@@ -178,111 +180,129 @@ function AutomationsPage() {
 
   return (
     <AppShell>
-      {/* Overview */}
-      <div className="card-surface flex items-center gap-3 p-4">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-          <Zap className="h-5 w-5" />
-        </span>
-        <div className="flex-1">
-          <p className="text-[13px] font-semibold text-foreground">
-            {items.length} automatisation{items.length > 1 ? "s" : ""}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            {activeCount} active{activeCount > 1 ? "s" : ""} · déclenchement à l'heure exacte
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground shadow-soft"
-        >
-          <Plus className="h-4 w-4" />
-          Nouvelle
-        </button>
-      </div>
-
-      <SectionHeader
-        title="Vos automatisations"
-        hint={items.length ? undefined : "Aucune pour l'instant"}
+      <PageHeader
+        title="Automatisations"
+        subtitle="Vos règles s'exécutent à l'heure exacte, même en arrière-plan."
+        action={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground shadow-soft transition-transform active:scale-95"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle
+          </button>
+        }
       />
 
-      {items.length === 0 ? (
-        <EmptyState
-          icon={Wand2}
-          title="Créez votre première automatisation"
-          description="Un assistant en 4 étapes : déclencheur, actions, conditions, résumé."
-          action={
-            <button
-              type="button"
-              onClick={openCreate}
-              className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground"
-            >
-              Commencer
-            </button>
-          }
-        />
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {items.map((a) => (
-            <AutomationCard
-              key={a.id}
-              automation={a}
-              history={history}
-              onEdit={() => openEdit(a)}
-              onToggle={() => toggleAutomation(a.id, !a.enabled)}
-              onDuplicate={() => {
-                duplicateAutomation(a.id);
-                toast.success("Automatisation dupliquée", {
-                  description: "Une copie désactivée a été créée, modifiable librement.",
-                });
-              }}
-              onDelete={() => setConfirmDelete(a)}
-              onRun={async () => {
-                try {
-                  const rec = await runAutomation(a, { simulate: false });
-                  if (rec.status === "ok") {
-                    toast.success("Règle exécutée", {
-                      description: `« ${a.name} » a été appliquée avec succès.`,
-                    });
-                  } else if (rec.status === "partial") {
-                    toast.warning("Exécution partielle", {
-                      description: `« ${a.name} » a rencontré ${rec.errors.length} erreur${rec.errors.length > 1 ? "s" : ""}. Consultez l'historique pour le détail.`,
-                    });
-                  } else {
+      {items.length ? (
+        <>
+          {/* Compteurs : une seule et unique présentation du volume. */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <StatTile
+              icon={Zap}
+              value={String(items.length)}
+              label={`automatisation${items.length > 1 ? "s" : ""}`}
+            />
+            <StatTile
+              icon={CheckCircle2}
+              value={String(activeCount)}
+              label={`active${activeCount > 1 ? "s" : ""}`}
+              muted={activeCount === 0}
+            />
+          </div>
+
+          <SectionHeader title="Vos automatisations" />
+          <ul className="flex flex-col gap-2">
+            {items.map((a) => (
+              <AutomationCard
+                key={a.id}
+                automation={a}
+                history={history}
+                onEdit={() => openEdit(a)}
+                onToggle={() => toggleAutomation(a.id, !a.enabled)}
+                onDuplicate={() => {
+                  duplicateAutomation(a.id);
+                  toast.success("Automatisation dupliquée", {
+                    description: "Une copie désactivée a été créée, modifiable librement.",
+                  });
+                }}
+                onDelete={() => setConfirmDelete(a)}
+                onRun={async () => {
+                  try {
+                    const rec = await runAutomation(a, { simulate: false });
+                    if (rec.status === "ok") {
+                      toast.success("Règle exécutée", {
+                        description: `« ${a.name} » a été appliquée avec succès.`,
+                      });
+                    } else if (rec.status === "partial") {
+                      toast.warning("Exécution partielle", {
+                        description: `« ${a.name} » a rencontré ${rec.errors.length} erreur${rec.errors.length > 1 ? "s" : ""}. Consultez l'historique pour le détail.`,
+                      });
+                    } else {
+                      toast.error("L'exécution a échoué", {
+                        description: rec.errors[0]
+                          ? errorMessage(new Error(rec.errors[0]))
+                          : `« ${a.name} » n'a pas pu être exécutée.`,
+                      });
+                    }
+                  } catch (err) {
                     toast.error("L'exécution a échoué", {
-                      description: rec.errors[0]
-                        ? errorMessage(new Error(rec.errors[0]))
-                        : `« ${a.name} » n'a pas pu être exécutée.`,
+                      description: errorMessage(err, "Impossible d'exécuter cette automatisation."),
                     });
                   }
-                } catch (err) {
-                  toast.error("L'exécution a échoué", {
-                    description: errorMessage(err, "Impossible d'exécuter cette automatisation."),
-                  });
-                }
-              }}
-            />
-          ))}
-        </ul>
-      )}
-
-      <div className="mt-4">
-        <Link
-          to="/automatisations/historique"
-          className="card-surface flex w-full items-center gap-3 p-3.5"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-primary">
-            <History className="h-4 w-4" />
+                }}
+              />
+            ))}
+          </ul>
+        </>
+      ) : (
+        /* État vide : un seul message, une seule action. */
+        <div className="card-surface mt-4 flex flex-col items-center gap-3 px-5 py-8 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+            <Wand2 className="h-6 w-6" />
           </span>
-          <div className="flex-1">
-            <p className="text-[13px] font-medium text-foreground">Historique d'exécution</p>
-            <p className="text-[11px] text-muted-foreground">
-              {history.length} entrée{history.length > 1 ? "s" : ""}
+          <div>
+            <p className="text-[15px] font-semibold text-foreground">Aucune automatisation</p>
+            <p className="mx-auto mt-1 max-w-[38ch] text-[12.5px] leading-relaxed text-muted-foreground">
+              Triez, déplacez ou nettoyez vos fichiers automatiquement : choisissez un déclencheur,
+              des actions, et GeniusFiles s'occupe du reste.
             </p>
           </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
-      </div>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="mt-1 flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground shadow-soft transition-transform active:scale-95"
+          >
+            <Plus className="h-4 w-4" />
+            Créer ma première automatisation
+          </button>
+        </div>
+      )}
+
+      {/* Historique : toujours accessible, compact, aux deux états. */}
+      <SectionHeader title="Historique d'exécution" />
+      <Link
+        to="/automatisations/historique"
+        className="card-surface flex w-full items-center gap-3 p-3.5"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+          <History className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13.5px] font-medium text-foreground">
+            {history.length
+              ? `${history.length} exécution${history.length > 1 ? "s" : ""} enregistrée${history.length > 1 ? "s" : ""}`
+              : "Aucune exécution pour l'instant"}
+          </p>
+          <p className="truncate text-[11.5px] text-muted-foreground">
+            {history[0]
+              ? `Dernière : ${history[0].automationName} · ${new Date(history[0].finishedAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`
+              : "Les exécutions apparaîtront ici automatiquement."}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
 
       {editing ? (
         <AutomationWizard draft={editing} onCancel={() => setEditing(null)} onSave={onSave} />
@@ -312,6 +332,36 @@ function AutomationsPage() {
         }}
       />
     </AppShell>
+  );
+}
+
+/* ─────────────────────── Stat tile ─────────────────────── */
+
+function StatTile({
+  icon: Icon,
+  value,
+  label,
+  muted,
+}: {
+  icon: LucideIcon;
+  value: string;
+  label: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="card-surface flex items-center gap-3 p-3.5">
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+          muted ? "bg-secondary text-muted-foreground" : "bg-primary/12 text-primary"
+        }`}
+      >
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[18px] font-bold leading-none tabular-nums text-foreground">{value}</p>
+        <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{label}</p>
+      </div>
+    </div>
   );
 }
 

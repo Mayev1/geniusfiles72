@@ -104,6 +104,7 @@ function SettingsPage() {
           <SettingsItem
             label="Thème"
             desc="Automatique suit Android. Votre choix est conservé après fermeture."
+            stacked
           >
             <ThemePicker
               value={hydrated ? prefs.appearance.theme : DEFAULT_PREFS.appearance.theme}
