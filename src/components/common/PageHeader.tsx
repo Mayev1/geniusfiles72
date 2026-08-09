@@ -30,7 +30,7 @@ export function PageHeader({
 }) {
   return (
     <header className="sticky top-0 z-30 -mx-4 border-b border-border/60 bg-background pt-safe">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 pb-3 pt-3 pl-safe pr-safe">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pb-3 pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] pt-3">
         <div className="flex min-w-0 items-center gap-2">
           {leading ? <div className="shrink-0">{leading}</div> : null}
           <div className="min-w-0">
