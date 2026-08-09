@@ -40,6 +40,7 @@ import {
 import { useRoots } from "@/lib/fs/useRoots";
 import { useViewportInset } from "@/hooks/use-viewport-inset";
 import { errorMessage } from "@/lib/errors/humanize";
+import { kbSentence } from "@/lib/keyboard-props";
 import { chatOfflineCopy } from "@/lib/copy/empty-illustrations";
 
 export const Route = createFileRoute("/assistant")({
@@ -207,6 +208,11 @@ function AssistantPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string>(() => newId());
   const endRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Défilement automatique « intelligent » : on ne suit le flux que si
+  // l'utilisateur est déjà en bas de la conversation.
+  const atBottomRef = useRef(true);
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const { roots } = useRoots();
   const rootsRef = useRef(roots);
@@ -313,6 +319,12 @@ function AssistantPage() {
 
   // Le défilement n'est JAMAIS forcé : l'utilisateur garde le contrôle de
   // sa position de lecture. On ne recentre qu'après un envoi manuel.
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 96;
+  }, []);
+
   const scrollToEnd = useCallback(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, []);
@@ -329,6 +341,7 @@ function AssistantPage() {
   }, [input, autoSize]);
 
   const handleSubmit = (e?: FormEvent) => {
+    atBottomRef.current = true;
     e?.preventDefault();
     const text = input.trim();
     if (!text || isBusy) return;
@@ -448,6 +461,18 @@ function AssistantPage() {
     return steps;
   }, [isBusy, turnActive, engineStage, messages]);
 
+  // Suivi du flux uniquement si l'utilisateur lit déjà le bas de l'écran.
+  useEffect(() => {
+    if (!atBottomRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [messages, pipeline]);
+
+  const canSend = Boolean(input.trim()) && !(offlineBlocked && !isOnline);
   const bottomSpace = keyboardInset > 0 ? 12 : undefined;
 
   return (
@@ -486,7 +511,15 @@ function AssistantPage() {
           </button>
         </header>
 
-        <div className="gf-chat-safe min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain scroll-smooth px-4 pb-5">
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="gf-chat-safe min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 pb-6"
+          style={{
+            paddingLeft: "calc(env(safe-area-inset-left, 0px) + 1rem)",
+            paddingRight: "calc(env(safe-area-inset-right, 0px) + 1rem)",
+          }}
+        >
           {messages.length === 0 ? (
             <Welcome />
           ) : (
@@ -515,12 +548,14 @@ function AssistantPage() {
         </div>
 
         <div
-          className="shrink-0 bg-background/95 pt-1 backdrop-blur-sm"
+          className="shrink-0 border-t border-border/40 bg-background/95 pt-2 backdrop-blur-sm"
           style={{
             paddingBottom:
               bottomSpace !== undefined
                 ? bottomSpace
                 : "calc(env(safe-area-inset-bottom) + 6.25rem)",
+            paddingLeft: "env(safe-area-inset-left, 0px)",
+            paddingRight: "env(safe-area-inset-right, 0px)",
           }}
         >
           <div className="px-3">
@@ -529,12 +564,18 @@ function AssistantPage() {
 
           <form
             onSubmit={handleSubmit}
-            className="mx-3 mt-1.5 flex items-end gap-2 rounded-[26px] border border-border/70 bg-surface-elevated p-1.5 shadow-[0_6px_24px_-12px_rgba(0,0,0,0.6)]"
+            className={`mx-3 mt-2 flex items-end gap-2 rounded-[26px] border bg-surface-elevated p-1.5 transition-[border-color,box-shadow] duration-200 ${
+              focused
+                ? "border-primary/60 shadow-[0_8px_28px_-14px_rgba(0,0,0,0.75)]"
+                : "border-border/70 shadow-[0_6px_24px_-16px_rgba(0,0,0,0.7)]"
+            }`}
           >
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -542,28 +583,30 @@ function AssistantPage() {
                 }
               }}
               rows={1}
-              placeholder="Écrivez votre demande..."
+              placeholder="Écrivez votre demande…"
               aria-label="Message"
-              autoCorrect="on"
-              autoCapitalize="sentences"
-              spellCheck
-              className="max-h-32 min-h-[44px] w-full min-w-0 flex-1 resize-none self-center bg-transparent px-3.5 py-[11px] text-[14.5px] leading-[22px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              {...kbSentence}
+              className="max-h-32 min-h-[46px] w-full min-w-0 flex-1 resize-none self-center bg-transparent px-3.5 py-[12px] text-[15px] leading-[22px] text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
             {isBusy ? (
               <button
                 type="button"
                 onClick={() => stop()}
                 aria-label="Arrêter la réponse"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground transition-transform duration-150 active:scale-95"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground transition-transform duration-100 active:scale-90"
               >
                 <Square className="h-3.5 w-3.5 fill-current" />
               </button>
             ) : (
               <button
                 type="submit"
-                disabled={!input.trim() || (offlineBlocked && !isOnline)}
+                disabled={!canSend}
                 aria-label="Envoyer"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,opacity] duration-100 active:scale-90 ${
+                  canSend
+                    ? "bg-primary text-primary-foreground"
+                    : "cursor-not-allowed bg-secondary text-muted-foreground opacity-70"
+                }`}
               >
                 <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.4} />
               </button>
@@ -580,73 +623,6 @@ function AssistantPage() {
         onNewConversation={startNew}
       />
     </AppShell>
-  );
-}
-
-/**
- * Ligne d'état unique : une seule étape visible à la fois, transitions en
- * fondu + léger déplacement vertical. Aucune information technique,
- * jamais de liste, jamais de temps mort — le dernier libellé reste
- * affiché tant que le travail continue, puis disparaît en fondu.
- */
-function StatusLine({ stage }: { stage: string | null }) {
-  const [label, setLabel] = useState<string | null>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!stage) {
-      // Disparition progressive : on garde le dernier libellé le temps
-      // du fondu, puis on démonte.
-      setVisible(false);
-      const t = setTimeout(() => setLabel(null), 260);
-      return () => clearTimeout(t);
-    }
-    const script = stage === "thinking" ? THINK_SCRIPT : stage === "wrap" ? WRAP_SCRIPT : [stage];
-    let i = 0;
-    setLabel(script[0]);
-    setVisible(true);
-    if (script.length === 1) return;
-    const timer = setInterval(() => {
-      i += 1;
-      // Le dernier libellé reste affiché : aucune période vide.
-      if (i >= script.length) {
-        clearInterval(timer);
-        return;
-      }
-      setLabel(script[i]);
-    }, 1600);
-    return () => clearInterval(timer);
-  }, [stage]);
-
-  if (!label) return null;
-
-  return (
-    <div
-      className="gf-chat-safe flex items-center gap-2.5 px-1 transition-opacity duration-300"
-      style={{ opacity: visible ? 1 : 0 }}
-      aria-live="polite"
-    >
-      <span className="flex shrink-0 gap-1">
-        <Dot delay="0ms" />
-        <Dot delay="140ms" />
-        <Dot delay="280ms" />
-      </span>
-      <span
-        key={label}
-        className="gf-status-line min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground"
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function Dot({ delay }: { delay: string }) {
-  return (
-    <span
-      className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
-      style={{ animationDelay: delay, animationDuration: "1s" }}
-    />
   );
 }
 
