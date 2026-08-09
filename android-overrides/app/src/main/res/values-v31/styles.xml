@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31+) SplashScreen override.
+
+  On API 31+, Android replaces the launch theme's windowBackground with
+  the system SplashScreen: it renders the app's launcher icon inside a
+  288dp masked circle over `windowSplashScreenBackground`. If
+  `windowSplashScreenAnimatedIcon` is not overridden, Android upscales
+  the small ic_launcher foreground into that region → the "tiny blurred
+  logo in a dark rounded square" symptom.
+
+  We point it at @drawable/splash_icon, a high-resolution adaptive
+  drawable whose foreground is emitted by scripts/generate-app-icons.mjs
+  at native resolution (no upscaling, no blur).
+
+  `postSplashScreenTheme` est indispensable : sans lui l'activité garde le
+  thème de lancement (fond splash opaque, barres non pilotées) après la
+  disparition du splash.
+-->
+<resources>
+    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+        <item name="android:background">@color/splash_background</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    </style>
+</resources>
