@@ -173,7 +173,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // stall first paint on APK cold-start and fail entirely when the
       // WebView boots offline. System-font fallbacks render immediately;
       // Inter/Space Grotesk swap in when the network delivers the sheet.
-      { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],
   }),
 
