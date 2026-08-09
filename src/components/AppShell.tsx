@@ -70,9 +70,19 @@ export function AppShell({ children }: { children?: ReactNode }) {
       {/* Transferts en arrière-plan : suivi permanent (sans interface). */}
       <TransferTracker />
       {reader ? null : <BottomNav pathname={pathname} />}
+      {/* Écran opaque de la barre d'état : garantit qu'aucun contenu
+          scrollé ne puisse apparaître derrière elle, sur toutes les pages
+          (le lecteur plein écran a sa propre barre opaque). */}
+      {reader ? null : (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 top-0 z-50 h-safe-top bg-background"
+        />
+      )}
     </div>
   );
 }
+
 
 function BottomNav({ pathname }: { pathname: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
