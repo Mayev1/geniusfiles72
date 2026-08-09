@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Thème Android DayNight : le premier frame et le splash suivent le système.
+  Le choix explicite de l'utilisateur est restauré par MainActivity avant
+  l'inflation, puis le pont Web synchronise les changements instantanément.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar" />
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@color/splash_background</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowTranslucentNavigation">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/is_light_system_theme</item>
+        <item name="android:windowLightNavigationBar">@bool/is_light_system_theme</item>
+        <!-- Plein écran réel en paysage : la fenêtre déborde sur la découpe. -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="27">shortEdges</item>
+
+
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@color/splash_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/is_light_system_theme</item>
+        <item name="android:windowLightNavigationBar">@bool/is_light_system_theme</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    </style>
+</resources>
