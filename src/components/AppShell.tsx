@@ -26,11 +26,17 @@ export function AppShell({ children }: { children?: ReactNode }) {
      entièrement retirée de l'arbre : aucune hauteur, aucun événement. */
   const reader = useReaderMode();
   const isHome = pathname === "/";
-  /* Les écrans dotés de FilesTopBar gèrent eux-mêmes la safe area : un
-     padding supplémentaire ici laisserait une bande vide au-dessus du titre. */
-  const ownsSafeArea = isHome || pathname.startsWith("/categorie");
+  /* Écrans dotés d'un en-tête collant (FilesTopBar ou PageHeader) : ils
+     absorbent eux-mêmes l'inset supérieur. Un padding ici laisserait une
+     bande vide au-dessus du titre. */
+  const ownsSafeArea =
+    isHome ||
+    ["/categorie", "/parametres", "/automatisations", "/pdf-outils", "/outils"].some((p) =>
+      pathname.startsWith(p),
+    );
   /* La conversation gère elle-même sa hauteur et son espace bas (nav + clavier). */
   const isChat = pathname.startsWith("/assistant");
+
 
   return (
     <div
