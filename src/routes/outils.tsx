@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { AnalysisProgressPanel } from "@/components/analysis/AnalysisProgressPanel";
 
@@ -142,7 +143,11 @@ function ShortcutRow({ tool }: { tool: Tool }) {
 function ToolsPage() {
   return (
     <AppShell>
-      <AnalysisProgressPanel />
+      <PageHeader title="Outils" subtitle="Tous les outils de GeniusFiles." />
+
+      <div className="mt-4">
+        <AnalysisProgressPanel />
+      </div>
 
       <SectionHeader title="Autres outils" />
       <ToolsList tools={OTHER_TOOLS} />
