@@ -31,7 +31,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
      bande vide au-dessus du titre. */
   const ownsSafeArea =
     isHome ||
-    ["/categorie", "/parametres", "/automatisations", "/pdf-outils", "/outils", "/corbeille"].some(
+    ["/categorie", "/parametres", "/automatisations", "/pdf-outils", "/outils", "/corbeille", "/nettoyeur"].some(
       (p) => pathname.startsWith(p),
     );
   /* La conversation gère elle-même sa hauteur et son espace bas (nav + clavier). */

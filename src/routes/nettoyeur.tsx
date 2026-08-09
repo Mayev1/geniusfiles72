@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { ListSkeleton } from "@/components/ui/states";
+import { PageHeader } from "@/components/common/PageHeader";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BottomSheet, PrimaryButton } from "@/components/files/BottomSheet";
@@ -395,32 +396,36 @@ function CleanerPage() {
         onClose={() => setOpenCategory(null)}
       />
 
-      {/* Sticky action bar */}
+      {/* Barre d'action collante — disposition en grille : les libellés
+          ne peuvent plus déborder sur les écrans étroits. */}
       {selectedIds.size > 0 && !cleaning ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-[520px] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
-          <div className="glass-panel animate-in-up pointer-events-auto flex items-center gap-2 rounded-3xl border border-border-strong px-3 py-2 shadow-soft animate-in-up">
-            <div className="flex-1 min-w-0">
-              <p className="text-[13.5px] font-semibold leading-tight">
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-40 mx-auto flex max-w-[520px] justify-center px-3">
+          <div className="glass-panel animate-in-up pointer-events-auto w-full rounded-3xl border border-border-strong p-2.5 shadow-soft">
+            <div className="mb-2 min-w-0 px-1">
+              <p className="truncate text-[13.5px] font-semibold leading-tight">
                 {countLabel(selectedIds.size, "élément sélectionné", "éléments sélectionnés")}
               </p>
-              <p className="text-[12px] text-muted-foreground">
+              <p className="truncate text-[12px] text-muted-foreground">
                 {freedLabel(selectedBytes)} à libérer
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelection({})}
-              className="gf-press h-11 shrink-0 rounded-2xl bg-surface-2 px-3.5 text-[13px] font-semibold text-muted-foreground hover:text-foreground"
-            >
-              Tout désélectionner
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              className="gf-press flex h-11 shrink-0 items-center gap-1.5 rounded-2xl bg-primary px-4 text-[13.5px] font-semibold text-primary-foreground shadow-soft"
-            >
-              <Play className="h-4 w-4" /> Nettoyer
-            </button>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+              <button
+                type="button"
+                onClick={() => setSelection({})}
+                className="gf-press h-11 rounded-2xl bg-surface-2 px-3.5 text-[13px] font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Désélectionner
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                className="gf-press flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-2xl bg-primary px-4 text-[13.5px] font-semibold text-primary-foreground shadow-soft"
+              >
+                <Play className="h-4 w-4 shrink-0" />
+                <span className="truncate">Nettoyer · {freedLabel(selectedBytes)}</span>
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
