@@ -17,7 +17,7 @@ import {
 import {
   ArrowUp,
   Square,
-  History,
+  Menu,
   PenSquare,
   ShieldCheck,
   MessagesSquare,
@@ -25,7 +25,12 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AssistantMarkdown } from "@/components/assistant/AssistantMarkdown";
-import { ConversationsSheet } from "@/components/assistant/ConversationsSheet";
+import { AssistantDrawer } from "@/components/assistant/AssistantDrawer";
+import {
+  PipelineTrace,
+  type PipelineStep,
+  type PipelineState,
+} from "@/components/assistant/PipelineTrace";
 import { TemplateMarquee } from "@/components/assistant/TemplateMarquee";
 import { chatApiUrl } from "@/lib/ai/api-url";
 import { runEngineTool } from "@/lib/ai/tools/execute";
@@ -43,6 +48,7 @@ import {
 import { useRoots } from "@/lib/fs/useRoots";
 import { useViewportInset } from "@/hooks/use-viewport-inset";
 import { errorMessage } from "@/lib/errors/humanize";
+import { kbSentence } from "@/lib/keyboard-props";
 import { chatOfflineCopy } from "@/lib/copy/empty-illustrations";
 
 export const Route = createFileRoute("/assistant")({
@@ -124,25 +130,14 @@ const ACTION_LABELS: Record<string, string> = {
   filter: "Filtrage des fichiers…",
 };
 
-/**
- * Étapes d'ouverture — jouées tant que le moteur n'a pas encore été
- * sollicité. Le dernier libellé reste affiché : jamais de temps mort.
- */
-const THINK_SCRIPT = [
-  "Compréhension de la demande…",
-  "Préparation de la commande…",
-  "Transmission au moteur…",
-];
-
-/** Étapes de sortie — après le moteur, avant le premier mot de réponse. */
-const WRAP_SCRIPT = [
-  "Traitement des résultats…",
-  "Interprétation des résultats…",
-  "Préparation de la réponse…",
-];
-
-/** Affiché pendant que la réponse s'écrit. */
-const WRITING_LABEL = "Rédaction de la réponse…";
+/** Libellés des étapes de la pipeline (aucun vocabulaire technique). */
+const STEP_LABELS = {
+  understand: "Compréhension de la demande",
+  plan: "Analyse et planification",
+  execute: "Exécution par le moteur local",
+  verify: "Vérification des résultats",
+  respond: "Rédaction de la réponse",
+} as const;
 
 type ToolPart = {
   type: string;
@@ -218,9 +213,14 @@ function AssistantPage() {
   // Vrai uniquement après une tentative d'envoi hors connexion : l'état
   // disparaît dès le retour du réseau, sans redémarrage.
   const [offlineBlocked, setOfflineBlocked] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string>(() => newId());
   const endRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Défilement automatique « intelligent » : on ne suit le flux que si
+  // l'utilisateur est déjà en bas de la conversation.
+  const atBottomRef = useRef(true);
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const { roots } = useRoots();
   const rootsRef = useRef(roots);
@@ -327,6 +327,12 @@ function AssistantPage() {
 
   // Le défilement n'est JAMAIS forcé : l'utilisateur garde le contrôle de
   // sa position de lecture. On ne recentre qu'après un envoi manuel.
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 96;
+  }, []);
+
   const scrollToEnd = useCallback(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, []);
@@ -343,6 +349,7 @@ function AssistantPage() {
   }, [input, autoSize]);
 
   const handleSubmit = (e?: FormEvent) => {
+    atBottomRef.current = true;
     e?.preventDefault();
     const text = input.trim();
     if (!text || isBusy) return;
@@ -390,28 +397,91 @@ function AssistantPage() {
   };
 
   /**
-   * Étape unique affichée au-dessus de la réponse.
-   * "thinking" → script d'ouverture ; libellé d'action → outil en cours ;
-   * "wrap" → finalisation ; null → rien.
+   * Pipeline réelle du tour en cours.
+   *
+   * Chaque étape est déduite de l'état effectif du flux : message envoyé,
+   * réflexion du modèle, commande transmise au moteur local (avec sa
+   * progression réelle), reprise du modèle, puis rédaction. Les étapes
+   * « exécution » et « vérification » n'apparaissent que si une commande a
+   * réellement été demandée par le modèle.
    */
-  const stage = useMemo<string | null>(() => {
-    // Le moteur est prioritaire : sa progression réelle reste affichée même
-    // si le flux du modèle est momentanément au repos entre deux étapes.
-    if (engineStage) return engineStage;
-    if (!isBusy && !turnActive) return null;
+  const pipeline = useMemo<PipelineStep[]>(() => {
+    if (!isBusy && !turnActive) return [];
+
     const last = messages[messages.length - 1];
-    if (last?.role !== "assistant") return "thinking";
-    const all = Array.isArray(last.parts) ? last.parts : [];
-    const parts = all.filter((p) => p?.type?.startsWith("tool-")) as unknown as ToolPart[];
+    const all =
+      last?.role === "assistant" && Array.isArray(last.parts) ? (last.parts as unknown[]) : [];
+    const parts = all.filter(
+      (p) => typeof (p as ToolPart)?.type === "string" && (p as ToolPart).type.startsWith("tool-"),
+    ) as ToolPart[];
     const running = [...parts].reverse().find(isRunning);
-    if (running) return ACTION_LABELS[commandOf(running)] ?? "Traitement en cours…";
-    const hasText = all.some((p) => p?.type === "text" && p.text.length > 0);
-    // Aucune période muette : tant que le tour n'est pas terminé, une
-    // étape reste visible — y compris pendant la rédaction.
-    if (hasText) return WRITING_LABEL;
-    return parts.length > 0 ? "wrap" : "thinking";
+    const failed = parts.find((p) => p.state === "output-error" || Boolean(p.errorText));
+    const hasText = all.some(
+      (p) =>
+        (p as { type?: string; text?: string })?.type === "text" && !!(p as { text?: string }).text,
+    );
+    const finished = !isBusy;
+
+    const steps: PipelineStep[] = [];
+    const push = (id: string, label: string, state: PipelineState, detail?: string) => {
+      steps.push({ id, label, state, detail });
+    };
+
+    const usesEngine = parts.length > 0 || Boolean(engineStage);
+
+    if (last?.role !== "assistant") {
+      push("understand", STEP_LABELS.understand, finished ? "done" : "active");
+      push("plan", STEP_LABELS.plan, "pending");
+      push("respond", STEP_LABELS.respond, "pending");
+      return steps;
+    }
+
+    push("understand", STEP_LABELS.understand, "done");
+
+    if (!usesEngine && !hasText) {
+      push("plan", STEP_LABELS.plan, finished ? "done" : "active");
+      push("respond", STEP_LABELS.respond, "pending");
+      return steps;
+    }
+
+    push("plan", STEP_LABELS.plan, "done");
+
+    if (usesEngine) {
+      const detail =
+        engineStage ?? (running ? (ACTION_LABELS[commandOf(running)] ?? undefined) : undefined);
+      const execState: PipelineState = failed
+        ? "failed"
+        : running || (engineStage && !hasText)
+          ? "active"
+          : "done";
+      push("execute", STEP_LABELS.execute, execState, detail);
+      push(
+        "verify",
+        STEP_LABELS.verify,
+        execState === "done" ? (hasText || finished ? "done" : "active") : "pending",
+      );
+    }
+
+    push(
+      "respond",
+      STEP_LABELS.respond,
+      hasText ? (finished ? "done" : "active") : finished ? "done" : "pending",
+    );
+    return steps;
   }, [isBusy, turnActive, engineStage, messages]);
 
+  // Suivi du flux uniquement si l'utilisateur lit déjà le bas de l'écran.
+  useEffect(() => {
+    if (!atBottomRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [messages, pipeline]);
+
+  const canSend = Boolean(input.trim()) && !(offlineBlocked && !isOnline);
   const bottomSpace = keyboardInset > 0 ? 12 : undefined;
 
   return (
@@ -420,33 +490,45 @@ function AssistantPage() {
         className="flex min-h-0 flex-1 flex-col overflow-x-hidden"
         style={{ marginBottom: keyboardInset || undefined }}
       >
-        <header className="flex shrink-0 items-center gap-3 px-4 pb-2 pt-1">
-          <div className="min-w-0 flex-1">
-            <h1 className="font-display truncate text-[22px] font-bold leading-tight tracking-tight text-foreground">
-              Genius AI
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setHistoryOpen(true)}
-              aria-label="Historique des conversations"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground transition-all duration-150 hover:text-foreground active:scale-95"
-            >
-              <History className="h-[18px] w-[18px]" />
-            </button>
-            <button
-              type="button"
-              onClick={startNew}
-              aria-label="Nouvelle conversation"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground transition-all duration-150 hover:text-foreground active:scale-95"
-            >
-              <PenSquare className="h-[18px] w-[18px]" />
-            </button>
-          </div>
+        <header
+          className="flex shrink-0 items-center gap-2 border-b border-border/40 px-2.5 pb-2.5"
+          style={{
+            paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)",
+            paddingLeft: "calc(env(safe-area-inset-left, 0px) + 0.625rem)",
+            paddingRight: "calc(env(safe-area-inset-right, 0px) + 0.625rem)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Ouvrir le menu des conversations"
+            aria-expanded={menuOpen}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-foreground transition-all duration-150 hover:bg-surface-2 active:scale-95"
+          >
+            <Menu className="h-[21px] w-[21px]" strokeWidth={2.1} />
+          </button>
+          <h1 className="font-display min-w-0 flex-1 truncate text-[19px] font-bold leading-tight tracking-tight text-foreground">
+            Genius AI
+          </h1>
+          <button
+            type="button"
+            onClick={startNew}
+            aria-label="Nouvelle conversation"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-foreground transition-all duration-150 hover:bg-surface-2 active:scale-95"
+          >
+            <PenSquare className="h-[19px] w-[19px]" strokeWidth={2.1} />
+          </button>
         </header>
 
-        <div className="gf-chat-safe min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain scroll-smooth px-4 pb-5">
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="gf-chat-safe min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 pb-6"
+          style={{
+            paddingLeft: "calc(env(safe-area-inset-left, 0px) + 1rem)",
+            paddingRight: "calc(env(safe-area-inset-right, 0px) + 1rem)",
+          }}
+        >
           {messages.length === 0 ? (
             <Welcome />
           ) : (
@@ -455,7 +537,7 @@ function AssistantPage() {
 
           {offlineBlocked ? <ChatOfflineState onRetry={() => handleSubmit()} /> : null}
 
-          <StatusLine stage={stage} />
+          <PipelineTrace steps={pipeline} />
 
           {error ? (
             <div className="gf-chat-safe rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
@@ -475,12 +557,14 @@ function AssistantPage() {
         </div>
 
         <div
-          className="shrink-0 bg-background/95 pt-1 backdrop-blur-sm"
+          className="shrink-0 border-t border-border/40 bg-background/95 pt-2 backdrop-blur-sm"
           style={{
             paddingBottom:
               bottomSpace !== undefined
                 ? bottomSpace
                 : "calc(env(safe-area-inset-bottom) + 6.25rem)",
+            paddingLeft: "env(safe-area-inset-left, 0px)",
+            paddingRight: "env(safe-area-inset-right, 0px)",
           }}
         >
           <div className="px-3">
@@ -489,12 +573,18 @@ function AssistantPage() {
 
           <form
             onSubmit={handleSubmit}
-            className="mx-3 mt-1.5 flex items-end gap-2 rounded-[26px] border border-border/70 bg-surface-elevated p-1.5 shadow-[0_6px_24px_-12px_rgba(0,0,0,0.6)]"
+            className={`mx-3 mt-2 flex items-end gap-2 rounded-[26px] border bg-surface-elevated p-1.5 transition-[border-color,box-shadow] duration-200 ${
+              focused
+                ? "border-primary/60 shadow-[0_8px_28px_-14px_rgba(0,0,0,0.75)]"
+                : "border-border/70 shadow-[0_6px_24px_-16px_rgba(0,0,0,0.7)]"
+            }`}
           >
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -502,28 +592,30 @@ function AssistantPage() {
                 }
               }}
               rows={1}
-              placeholder="Écrivez votre demande..."
+              placeholder="Écrivez votre demande…"
               aria-label="Message"
-              autoCorrect="on"
-              autoCapitalize="sentences"
-              spellCheck
-              className="max-h-32 min-h-[44px] w-full min-w-0 flex-1 resize-none self-center bg-transparent px-3.5 py-[11px] text-[14.5px] leading-[22px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              {...kbSentence}
+              className="max-h-32 min-h-[46px] w-full min-w-0 flex-1 resize-none self-center bg-transparent px-3.5 py-[12px] text-[15px] leading-[22px] text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
             {isBusy ? (
               <button
                 type="button"
                 onClick={() => stop()}
                 aria-label="Arrêter la réponse"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground transition-transform duration-150 active:scale-95"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground transition-transform duration-100 active:scale-90"
               >
                 <Square className="h-3.5 w-3.5 fill-current" />
               </button>
             ) : (
               <button
                 type="submit"
-                disabled={!input.trim() || (offlineBlocked && !isOnline)}
+                disabled={!canSend}
                 aria-label="Envoyer"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,opacity] duration-100 active:scale-90 ${
+                  canSend
+                    ? "bg-primary text-primary-foreground"
+                    : "cursor-not-allowed bg-secondary text-muted-foreground opacity-70"
+                }`}
               >
                 <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.4} />
               </button>
@@ -532,81 +624,14 @@ function AssistantPage() {
         </div>
       </div>
 
-      <ConversationsSheet
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
+      <AssistantDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
         activeId={conversationId}
         onOpenConversation={openConversation}
         onNewConversation={startNew}
       />
     </AppShell>
-  );
-}
-
-/**
- * Ligne d'état unique : une seule étape visible à la fois, transitions en
- * fondu + léger déplacement vertical. Aucune information technique,
- * jamais de liste, jamais de temps mort — le dernier libellé reste
- * affiché tant que le travail continue, puis disparaît en fondu.
- */
-function StatusLine({ stage }: { stage: string | null }) {
-  const [label, setLabel] = useState<string | null>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!stage) {
-      // Disparition progressive : on garde le dernier libellé le temps
-      // du fondu, puis on démonte.
-      setVisible(false);
-      const t = setTimeout(() => setLabel(null), 260);
-      return () => clearTimeout(t);
-    }
-    const script = stage === "thinking" ? THINK_SCRIPT : stage === "wrap" ? WRAP_SCRIPT : [stage];
-    let i = 0;
-    setLabel(script[0]);
-    setVisible(true);
-    if (script.length === 1) return;
-    const timer = setInterval(() => {
-      i += 1;
-      // Le dernier libellé reste affiché : aucune période vide.
-      if (i >= script.length) {
-        clearInterval(timer);
-        return;
-      }
-      setLabel(script[i]);
-    }, 1600);
-    return () => clearInterval(timer);
-  }, [stage]);
-
-  if (!label) return null;
-
-  return (
-    <div
-      className="gf-chat-safe flex items-center gap-2.5 px-1 transition-opacity duration-300"
-      style={{ opacity: visible ? 1 : 0 }}
-      aria-live="polite"
-    >
-      <span className="flex shrink-0 gap-1">
-        <Dot delay="0ms" />
-        <Dot delay="140ms" />
-        <Dot delay="280ms" />
-      </span>
-      <span
-        key={label}
-        className="gf-status-line min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground"
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function Dot({ delay }: { delay: string }) {
-  return (
-    <span
-      className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
-      style={{ animationDelay: delay, animationDuration: "1s" }}
-    />
   );
 }
 

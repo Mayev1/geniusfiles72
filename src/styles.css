@@ -1374,3 +1374,49 @@ html.gf-immersive .gf-thumb-bar {
     opacity: 1;
   }
 }
+
+/* -------- Genius AI : pipeline de traitement -------- */
+
+@utility gf-pipeline {
+  animation: gf-status-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility gf-pipeline-detail {
+  animation: gf-status-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes gf-pipeline-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@utility gf-pipeline-pop {
+  animation: gf-pipeline-pop 220ms cubic-bezier(0.22, 1.4, 0.4, 1) both;
+}
+
+@keyframes gf-pipeline-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility gf-pipeline-spin {
+  animation: gf-pipeline-spin 700ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gf-pipeline,
+  .gf-pipeline-detail,
+  .gf-pipeline-pop {
+    animation: none;
+  }
+  .gf-pipeline-spin {
+    animation-duration: 1400ms;
+  }
+}
