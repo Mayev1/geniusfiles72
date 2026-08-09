@@ -7,7 +7,7 @@ import { onStartupReady } from "@/lib/startup/boot";
  * Splash screen applicatif de GeniusFiles.
  *
  * Il prend le relais du splash natif Android à l'identique : celui-ci peint
- * la MÊME illustration, sur le MÊME fond, à la MÊME échelle (≈178dp de
+ * la MÊME illustration, sur le MÊME fond, à la MÊME échelle (192dp de
  * large, centrée) et à la MÊME position — voir `generate-app-icons.mjs`.
  * L'utilisateur voit donc une seule image, immobile, de la première frame
  * du système jusqu'à l'ouverture de l'accueil.
@@ -21,7 +21,7 @@ import { onStartupReady } from "@/lib/startup/boot";
  *
  * Règles :
  *  - illustration officielle unique (`/brand/geniusfiles-splash.png`,
- *    PNG RGBA détouré 802×669 recadré au plus juste, préchargé en priorité haute) ;
+ *    PNG RGBA détouré 802×666 recadré au plus juste, préchargé en priorité haute) ;
  *  - aucune animation d'entrée : l'image est déjà à l'écran (splash natif),
  *    un fondu d'entrée produirait un clignotement ;
  *  - seule animation : le fondu de sortie ;
@@ -30,11 +30,12 @@ import { onStartupReady } from "@/lib/startup/boot";
  */
 /**
  * Illustration officielle, déclinée en variantes DÉJÀ à la taille exacte
- * d'affichage pour chaque densité d'écran (178dp × 148dp × densité,
- * réduites en lanczos3 depuis le master 802×669).
+ * d'affichage pour chaque densité d'écran (192dp × 159dp × densité,
+ * réduites en lanczos3 depuis le master officiel 802×666 — même la variante
+ * 4× (768 px) reste une RÉDUCTION : aucun agrandissement, donc aucun flou).
  *
  * Pourquoi : la WebView Android rééchantillonne en bilinéaire simple. Faire
- * réduire le master 802px vers 356px (téléphone @2x) adoucissait les
+ * réduire le master 802px vers 384px (téléphone @2x) adoucissait les
  * contours et créait une différence de netteté perceptible avec le splash
  * système (composé, lui, en lanczos3). En servant une variante 1:1 avec le
  * nombre de pixels physiques réellement peints, la WebView ne redimensionne
@@ -49,18 +50,18 @@ export const SPLASH_ART_SRCSET =
  * Largeur exacte de l'illustration, en px CSS (= dp sous la WebView
  * Android, qui n'applique aucun zoom). Elle reproduit la largeur imposée
  * par le SplashScreen système d'Android 12+ : calque adaptatif de 288dp
- * dont la marque occupe 0.62 → 178dp. Valeur fixe (jamais relative au
+ * dont la marque occupe 0.667 → 192dp. Valeur fixe (jamais relative au
  * viewport) : c'est la seule façon de garantir l'absence de changement
  * d'échelle entre le splash natif et l'overlay, sur tout appareil.
  */
-const SPLASH_ART_WIDTH_PX = 178;
+const SPLASH_ART_WIDTH_PX = 192;
 /**
- * Hauteur ENTIÈRE (178 × 669/802 ≈ 148,5 → 148). Une hauteur fractionnaire
+ * Hauteur ENTIÈRE (192 × 666/802 ≈ 159,5 → 159). Une hauteur fractionnaire
  * force la WebView à rééchantillonner l'image sur une grille non entière :
  * contours adoucis et léger scintillement au moment du fondu. Les deux
  * dimensions sont donc fixées en pixels entiers.
  */
-const SPLASH_ART_HEIGHT_PX = 148;
+const SPLASH_ART_HEIGHT_PX = 159;
 
 /**
  * Plancher anti-scintillement : uniquement destiné à éviter un « flash »

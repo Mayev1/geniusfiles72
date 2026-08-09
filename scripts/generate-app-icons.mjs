@@ -103,7 +103,7 @@ for (const scale of [1, 2, 3, 4]) {
   const variant = join(ROOT, "public", "brand", `geniusfiles-splash-${scale}x.png`);
   if (!existsSync(variant)) {
     console.error(
-      `✗ Missing splash variant ${variant}. Régénérez les déclinaisons 178×148 ×${scale} depuis le master.`,
+      `✗ Missing splash variant ${variant}. Régénérez les déclinaisons 192×159 ×${scale} depuis le master.`,
     );
     process.exit(1);
   }
@@ -172,13 +172,15 @@ const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 console.log(`→ Composition des masters sous resources/`);
 // Icône legacy (API < 26) : le lanceur masque directement cette tuile, la
 // marque peut donc occuper presque tout le carré, sur le fond plaque.
-await compose({ size: 1024, ratio: 0.94, background: PLATE, output: join(RESOURCES, "icon.png") });
-// Premier plan adaptatif : 0.62 ≈ la fenêtre visible 72/108 → rendu
-// full-bleed identique aux icônes Play Store, sans agrandissement ni
-// déformation (le master 1024² est downscalé, jamais upscalé).
+await compose({ size: 1024, ratio: 1.0, background: PLATE, output: join(RESOURCES, "icon.png") });
+// Premier plan adaptatif : 0.667 = EXACTEMENT la fenêtre visible 72/108 →
+// la marque remplit toute la zone affichée par le lanceur (taille visuelle
+// comparable aux autres applications) sans jamais être rognée. Aller au-delà
+// ferait couper les bords de la plaque sur les masques circulaires.
+// Le master officiel (1059²) est réduit, jamais agrandi : aucun flou.
 await compose({
   size: 1024,
-  ratio: 0.62,
+  ratio: 0.667,
   background: TRANSPARENT,
   output: join(RESOURCES, "icon-foreground.png"),
 });
@@ -199,12 +201,12 @@ console.log(`   ✓ resources/icon-background.png (fond adaptatif)`);
 //
 // Géométrie : Capacitor affiche ce carré en FIT_CENTER, donc le carré est
 // mis à l'échelle de la plus petite dimension de l'écran. Un ratio de
-// 0.49 reproduit, sur un téléphone standard (~360dp de large), la largeur
-// de 178dp imposée par le SplashScreen système d'Android 12+ — les deux
+// 0.5333 reproduit, sur un téléphone standard (~360dp de large), la largeur
+// de 192dp imposée par le SplashScreen système d'Android 12+ — les deux
 // générations affichent ainsi la marque à la même taille perçue.
 // ─────────────────────────────────────────────────────────────────────
 const splashMarkBuf = await squareMark(SPLASH_SRC);
-const LEGACY_SPLASH_RATIO = 0.49;
+const LEGACY_SPLASH_RATIO = 0.5333;
 /**
  * Taille du canvas calée sur la résolution native du master : la marque
  * est composée à 1:1 (aucun agrandissement, donc aucun flou), puis
@@ -245,20 +247,22 @@ if (result.status !== 0) {
 //
 // Android impose son SplashScreen : `windowSplashScreenAnimatedIcon` est
 // un calque adaptatif de 288dp dont seuls les 2/3 intérieurs (192dp) sont
-// visibles. L'illustration officielle y est dessinée à 0.62 du canvas,
-// soit ≈ 178dp de large — exactement la largeur utilisée par l'overlay
+// visibles. L'illustration officielle y est dessinée à 0.667 du canvas,
+// soit 192dp de large — exactement la largeur utilisée par l'overlay
 // web (`SPLASH_ART_WIDTH_PX`). La marque est donc peinte dès la première
 // frame du système, puis reprise à l'identique par la WebView : une seule
 // image, une seule échelle, une seule position, aucun clignotement.
 //
-// Le calque est émis en 1152² (4× 288dp @xxxhdpi) : aucun agrandissement,
-// donc aucun flou, sur n'importe quelle densité d'écran.
+// Le calque est émis en 1152² (4× 288dp @xxxhdpi) et l'illustration y occupe
+// 0.667 du canvas — la fenêtre visible du masque adaptatif — soit 768 px,
+// exactement 192dp × 4 — la plus grande taille possible SANS agrandir le master officiel (802 px) : aucun
+// flou, aucune interpolation, netteté maximale à toutes les densités.
 // ─────────────────────────────────────────────────────────────────────
 const SPLASH_ICON_DIR = join(ANDROID, "app", "src", "main", "res", "drawable-nodpi");
 await mkdir(SPLASH_ICON_DIR, { recursive: true });
 await compose({
   size: 1152,
-  ratio: 0.62,
+  ratio: 0.667,
   background: TRANSPARENT,
   output: join(SPLASH_ICON_DIR, "splash_icon_foreground.png"),
   source: splashMarkBuf,

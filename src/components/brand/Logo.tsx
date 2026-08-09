@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /**
  * Canonical URL for the official GeniusFiles brand logo.
  *
- * Served from `public/brand/geniusfiles-logo.png` : master 1024×1024,
+ * Served from `public/brand/geniusfiles-logo.png` : master 1059×1059 (résolution native du fichier officiel),
  * **détouré (fond transparent)** et **recadré au plus juste** sur la
  * marque. Aucune marge morte : le logo remplit donc exactement la boîte
  * dans laquelle on le place, en interface comme dans les icônes Android
