@@ -376,26 +376,76 @@ function AssistantPage() {
   };
 
   /**
-   * Étape unique affichée au-dessus de la réponse.
-   * "thinking" → script d'ouverture ; libellé d'action → outil en cours ;
-   * "wrap" → finalisation ; null → rien.
+   * Pipeline réelle du tour en cours.
+   *
+   * Chaque étape est déduite de l'état effectif du flux : message envoyé,
+   * réflexion du modèle, commande transmise au moteur local (avec sa
+   * progression réelle), reprise du modèle, puis rédaction. Les étapes
+   * « exécution » et « vérification » n'apparaissent que si une commande a
+   * réellement été demandée par le modèle.
    */
-  const stage = useMemo<string | null>(() => {
-    // Le moteur est prioritaire : sa progression réelle reste affichée même
-    // si le flux du modèle est momentanément au repos entre deux étapes.
-    if (engineStage) return engineStage;
-    if (!isBusy && !turnActive) return null;
+  const pipeline = useMemo<PipelineStep[]>(() => {
+    if (!isBusy && !turnActive) return [];
+
     const last = messages[messages.length - 1];
-    if (last?.role !== "assistant") return "thinking";
-    const all = Array.isArray(last.parts) ? last.parts : [];
-    const parts = all.filter((p) => p?.type?.startsWith("tool-")) as unknown as ToolPart[];
+    const all =
+      last?.role === "assistant" && Array.isArray(last.parts) ? (last.parts as unknown[]) : [];
+    const parts = all.filter(
+      (p) => typeof (p as ToolPart)?.type === "string" && (p as ToolPart).type.startsWith("tool-"),
+    ) as ToolPart[];
     const running = [...parts].reverse().find(isRunning);
-    if (running) return ACTION_LABELS[commandOf(running)] ?? "Traitement en cours…";
-    const hasText = all.some((p) => p?.type === "text" && p.text.length > 0);
-    // Aucune période muette : tant que le tour n'est pas terminé, une
-    // étape reste visible — y compris pendant la rédaction.
-    if (hasText) return WRITING_LABEL;
-    return parts.length > 0 ? "wrap" : "thinking";
+    const failed = parts.find((p) => p.state === "output-error" || Boolean(p.errorText));
+    const hasText = all.some(
+      (p) => (p as { type?: string; text?: string })?.type === "text" && !!(p as { text?: string }).text,
+    );
+    const finished = !isBusy;
+
+    const steps: PipelineStep[] = [];
+    const push = (id: string, label: string, state: PipelineState, detail?: string) => {
+      steps.push({ id, label, state, detail });
+    };
+
+    const usesEngine = parts.length > 0 || Boolean(engineStage);
+
+    if (last?.role !== "assistant") {
+      push("understand", STEP_LABELS.understand, finished ? "done" : "active");
+      push("plan", STEP_LABELS.plan, "pending");
+      push("respond", STEP_LABELS.respond, "pending");
+      return steps;
+    }
+
+    push("understand", STEP_LABELS.understand, "done");
+
+    if (!usesEngine && !hasText) {
+      push("plan", STEP_LABELS.plan, finished ? "done" : "active");
+      push("respond", STEP_LABELS.respond, "pending");
+      return steps;
+    }
+
+    push("plan", STEP_LABELS.plan, "done");
+
+    if (usesEngine) {
+      const detail =
+        engineStage ?? (running ? (ACTION_LABELS[commandOf(running)] ?? undefined) : undefined);
+      const execState: PipelineState = failed
+        ? "failed"
+        : running || (engineStage && !hasText)
+          ? "active"
+          : "done";
+      push("execute", STEP_LABELS.execute, execState, detail);
+      push(
+        "verify",
+        STEP_LABELS.verify,
+        execState === "done" ? (hasText || finished ? "done" : "active") : "pending",
+      );
+    }
+
+    push(
+      "respond",
+      STEP_LABELS.respond,
+      hasText ? (finished ? "done" : "active") : finished ? "done" : "pending",
+    );
+    return steps;
   }, [isBusy, turnActive, engineStage, messages]);
 
   const bottomSpace = keyboardInset > 0 ? 12 : undefined;
