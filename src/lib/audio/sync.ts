@@ -1,29 +1,42 @@
 /**
  * Synchronisation multipiste réelle (façon « Sync » d'une platine DJ).
  *
- * Aucune illusion visuelle : les pistes synchronisées sont réellement
- * ré-étirées dans le temps (WSOLA, hauteur préservée) à partir de leur
- * audio d'origine, puis repositionnées sur la grille de battements de la
- * piste maître. Comme le moteur de lecture démarre toutes les pistes sur
- * la même horloge `AudioContext`, elles restent alignées à l'échantillon
- * près pendant toute la lecture, après un seek comme après une pause.
+ * Le tempo n'est **jamais** deviné : chaque piste porte un BPM saisi
+ * manuellement par l'utilisateur. La synchronisation se contente d'un
+ * calcul exact — `facteur = bpm_maître / bpm_source` — puis ré-étire
+ * réellement l'audio de la piste (WSOLA, hauteur préservée) depuis sa
+ * source d'origine. Comme le moteur de lecture démarre toutes les pistes
+ * sur la même horloge `AudioContext`, elles restent alignées à
+ * l'échantillon près pendant toute la lecture, après un seek comme après
+ * une pause.
  */
 import type { AudioClip } from "./types";
 import { emptyClip } from "./dsp";
-import { analyzeTempo, analyzeTempoAsync, type TempoInfo } from "./bpm";
+
+/** Bornes acceptées pour une saisie manuelle de BPM. */
+export const MIN_BPM = 20;
+export const MAX_BPM = 300;
+export const DEFAULT_BPM = 120;
+
+/** Valide une saisie utilisateur : renvoie `null` si elle est inexploitable. */
+export function normalizeBpm(value: unknown): number | null {
+  const n = typeof value === "number" ? value : Number.parseFloat(String(value ?? "").trim());
+  if (!Number.isFinite(n)) return null;
+  const rounded = Math.round(n * 100) / 100;
+  if (rounded < MIN_BPM || rounded > MAX_BPM) return null;
+  return rounded;
+}
 
 /** Métadonnées de synchronisation portées par une piste. */
 export type TrackSync = {
-  /** BPM d'origine détecté (null = indétectable). */
-  sourceBpm: number | null;
-  /** BPM cible (celui de la piste maître). */
-  targetBpm: number | null;
-  /** Facteur d'étirement appliqué (1 = aucun). */
+  /** BPM d'origine saisi par l'utilisateur. */
+  sourceBpm: number;
+  /** BPM cible (celui de la piste maître, saisi par l'utilisateur). */
+  targetBpm: number;
+  /** Facteur d'étirement appliqué à la durée (1 = aucun). */
   ratio: number;
   /** Identifiant de la piste maître (`main` ou id de piste). */
   masterId: string;
-  /** Synchronisation temporelle seule (tempo non détecté). */
-  timeOnly: boolean;
 };
 
 /**
@@ -111,93 +124,50 @@ export function stretchWsola(clip: AudioClip, ratio: number): AudioClip {
   return out;
 }
 
-/** Replie un tempo autour de la référence (évite un ×2 ou ÷2 absurde). */
-export function foldTempo(bpm: number, reference: number): number {
-  let v = bpm;
-  while (v / reference > 1.4) v /= 2;
-  while (reference / v > 1.4) v *= 2;
-  return v;
+/**
+ * Facteur d'étirement de durée : `bpm_source / bpm_cible`.
+ * Aucune interprétation moitié/double, aucun arrondi : la valeur saisie
+ * est utilisée telle quelle.
+ */
+export function tempoRatio(sourceBpm: number, targetBpm: number): number {
+  if (!Number.isFinite(sourceBpm) || !Number.isFinite(targetBpm)) return 1;
+  if (sourceBpm <= 0 || targetBpm <= 0) return 1;
+  return sourceBpm / targetBpm;
 }
 
 export type SyncInput = {
   id: string;
-  clip: AudioClip;
-  /** Position actuelle sur la timeline (s). */
+  /** Position actuelle sur la timeline (s) — conservée telle quelle. */
   offset: number;
-  tempo: TempoInfo;
+  /** BPM saisi manuellement. */
+  bpm: number;
 };
 
 export type SyncPlan = {
   id: string;
   /** Étirement à appliquer à l'audio source (1 = inchangé). */
   ratio: number;
-  /** Nouveau décalage sur la timeline (s). */
+  /** Décalage sur la timeline (s), inchangé : l'utilisateur en reste maître. */
   offset: number;
-  sourceBpm: number | null;
-  targetBpm: number | null;
-  timeOnly: boolean;
+  sourceBpm: number;
+  targetBpm: number;
 };
 
 /**
- * Calcule, pour chaque piste cible, l'étirement et le décalage qui
- * l'alignent musicalement sur la piste maître. Aucun audio n'est traité
- * ici : le plan est pur et testable.
+ * Calcule, pour chaque piste cible, l'étirement qui l'amène exactement au
+ * tempo de la piste maître. Fonction pure et testable : aucun audio n'est
+ * traité ici, aucune analyse n'est lancée.
  */
 export function planSync(master: SyncInput, targets: SyncInput[]): SyncPlan[] {
-  const masterBpm = master.tempo.bpm;
-  const masterBeat0 = master.offset + master.tempo.beatOffset;
-  const beat = masterBpm ? 60 / masterBpm : 0;
-
+  const targetBpm = master.bpm;
   return targets.map((t) => {
-    const srcBpm = t.tempo.bpm;
-    let ratio = 1;
-    let timeOnly = true;
-    if (masterBpm && srcBpm) {
-      const folded = foldTempo(srcBpm, masterBpm);
-      ratio = folded / masterBpm; // durée cible / durée source
-      if (!Number.isFinite(ratio) || ratio <= 0.25 || ratio >= 4) ratio = 1;
-      else timeOnly = false;
-    }
-    const newBeat0 = t.tempo.beatOffset * ratio;
-    let offset: number;
-    if (beat > 0) {
-      // On garde la piste au plus près de sa position actuelle, mais son
-      // premier temps tombe exactement sur un battement du maître.
-      const k = Math.round((t.offset + newBeat0 - masterBeat0) / beat);
-      offset = masterBeat0 + k * beat - newBeat0;
-    } else {
-      // Sans tempo exploitable : alignement des premières attaques.
-      offset = masterBeat0 - newBeat0;
-    }
-    if (!Number.isFinite(offset)) offset = t.offset;
-    if (offset < 0) offset = beat > 0 ? offset + Math.ceil(-offset / beat) * beat : 0;
+    const ratio = tempoRatio(t.bpm, targetBpm);
     return {
       id: t.id,
-      ratio,
-      offset: Math.max(0, offset),
-      sourceBpm: srcBpm,
-      targetBpm: masterBpm,
-      timeOnly,
+      ratio: Number.isFinite(ratio) && ratio > 0.1 && ratio < 10 ? ratio : 1,
+      offset: Math.max(0, t.offset),
+      sourceBpm: t.bpm,
+      targetBpm,
     };
   });
-}
-
-/** Analyse mémoïsée par clip (les clips sont immuables dans l'éditeur). */
-const tempoCache = new WeakMap<AudioClip, TempoInfo>();
-
-export function tempoOf(clip: AudioClip): TempoInfo {
-  const hit = tempoCache.get(clip);
-  if (hit) return hit;
-  const info = analyzeTempo(clip);
-  tempoCache.set(clip, info);
-  return info;
-}
-
-/** Version non bloquante, mémoïsée : l'UI reste réactive pendant l'analyse. */
-export async function tempoOfAsync(clip: AudioClip): Promise<TempoInfo> {
-  const hit = tempoCache.get(clip);
-  if (hit) return hit;
-  const info = await analyzeTempoAsync(clip);
-  tempoCache.set(clip, info);
-  return info;
 }
