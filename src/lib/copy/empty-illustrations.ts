@@ -104,94 +104,76 @@ const FR: Bundle = {
   files: {
     title: "Aucun fichier",
     description: "Il n'y a rien à afficher ici pour le moment.",
-    alt: "Robot GeniusFiles feuilletant un dossier vide",
   },
   documents: {
     title: "Aucun document",
     description: "Vos documents apparaîtront ici dès qu'il y en aura.",
-    alt: "Robot GeniusFiles tenant une page blanche",
   },
   images: {
     title: "Aucune image",
     description: "Vos photos et images apparaîtront ici.",
-    alt: "Robot GeniusFiles tenant un cadre photo vide",
   },
   videos: {
     title: "Aucune vidéo",
     description: "Vos vidéos apparaîtront ici dès qu'il y en aura.",
-    alt: "Robot GeniusFiles tenant un clap de cinéma",
   },
   audio: {
     title: "Aucune musique",
     description: "Vos musiques et enregistrements apparaîtront ici.",
-    alt: "Robot GeniusFiles assis près d'un casque audio",
   },
   downloads: {
     title: "Aucun téléchargement",
     description: "Les fichiers que vous téléchargez apparaîtront ici.",
-    alt: "Robot GeniusFiles près d'une flèche de téléchargement",
   },
   favorites: {
     title: "Aucun favori",
     description: "Marquez un fichier d'une étoile pour le retrouver ici.",
-    alt: "Robot GeniusFiles tenant une étoile",
   },
   trash: {
     title: "Corbeille vide",
     description: "Les éléments supprimés apparaîtront ici avant leur effacement définitif.",
-    alt: "Robot GeniusFiles assis près d'une corbeille vide",
   },
   search: {
     title: "Aucun résultat",
     description: "Essayez un autre mot-clé ou ajustez vos filtres.",
-    alt: "Robot GeniusFiles cherchant à la loupe",
   },
   folder: {
     title: "Dossier vide",
     description: "Ce dossier ne contient encore aucun élément.",
-    alt: "Robot GeniusFiles derrière un dossier vide",
   },
   storage: {
     title: "Stockage inaccessible",
     description: "Impossible d'accéder à cet emplacement de stockage.",
-    alt: "Robot GeniusFiles devant un disque verrouillé",
   },
   permission: {
     title: "Permission refusée",
     description: "Autorisez GeniusFiles à accéder à vos fichiers.",
-    alt: "Robot GeniusFiles devant une porte blindée verrouillée",
   },
   network: {
     title: "Erreur réseau",
     description: "Vérifiez votre connexion Internet puis réessayez.",
-    alt: "Robot GeniusFiles à côté d'un signal réseau interrompu",
   },
   notFound: {
     title: "Fichier introuvable",
     description: "Ce fichier n'existe plus ou a été déplacé.",
-    alt: "Robot GeniusFiles cherchant un fichier disparu dans un dossier",
   },
   openFailed: {
     title: "Ouverture impossible",
     description: "Impossible d'ouvrir ce fichier.",
-    alt: "Robot GeniusFiles devant un fichier verrouillé",
   },
   lowSpace: {
     title: "Mémoire insuffisante",
     description:
       "L'espace disponible est insuffisant pour terminer cette opération. Libérez de l'espace puis réessayez.",
-    alt: "Robot GeniusFiles débordé par une pile de fichiers, jauge de stockage pleine",
   },
   unknownError: {
     title: "Erreur inconnue",
     description: "Une erreur inattendue s'est produite. Veuillez réessayer dans quelques instants.",
-    alt: "Robot GeniusFiles perplexe entouré de points d'interrogation",
   },
   operationFailed: {
     title: "Échec de l'opération",
     description:
       "L'action demandée n'a pas pu être exécutée. Vérifiez les informations puis réessayez.",
-    alt: "Robot GeniusFiles tenant un document marqué d'une croix rouge",
   },
 };
 
@@ -199,93 +181,75 @@ const EN: Bundle = {
   files: {
     title: "No files",
     description: "There is nothing to show here yet.",
-    alt: "GeniusFiles robot browsing an empty folder",
   },
   documents: {
     title: "No documents",
     description: "Your documents will show up here.",
-    alt: "GeniusFiles robot holding a blank page",
   },
   images: {
     title: "No images",
     description: "Your photos and images will show up here.",
-    alt: "GeniusFiles robot holding an empty picture frame",
   },
   videos: {
     title: "No videos",
     description: "Your videos will show up here.",
-    alt: "GeniusFiles robot holding a clapperboard",
   },
   audio: {
     title: "No music",
     description: "Your music and recordings will show up here.",
-    alt: "GeniusFiles robot sitting next to headphones",
   },
   downloads: {
     title: "No downloads",
     description: "Files you download will show up here.",
-    alt: "GeniusFiles robot next to a download arrow",
   },
   favorites: {
     title: "No favourites",
     description: "Star a file to find it here.",
-    alt: "GeniusFiles robot holding a star",
   },
   trash: {
     title: "Trash is empty",
     description: "Deleted items appear here before being erased for good.",
-    alt: "GeniusFiles robot sitting next to an empty bin",
   },
   search: {
     title: "No results",
     description: "Try another keyword or adjust your filters.",
-    alt: "GeniusFiles robot searching with a magnifying glass",
   },
   folder: {
     title: "Empty folder",
     description: "This folder does not contain anything yet.",
-    alt: "GeniusFiles robot behind an empty folder",
   },
   storage: {
     title: "Storage unavailable",
     description: "This storage location can't be reached.",
-    alt: "GeniusFiles robot in front of a locked drive",
   },
   permission: {
     title: "Permission denied",
     description: "Allow GeniusFiles to access your files.",
-    alt: "GeniusFiles robot in front of a locked security door",
   },
   network: {
     title: "Network error",
     description: "Check your Internet connection and try again.",
-    alt: "GeniusFiles robot next to a broken network signal",
   },
   notFound: {
     title: "File not found",
     description: "This file no longer exists or has been moved.",
-    alt: "GeniusFiles robot looking for a vanished file in a folder",
   },
   openFailed: {
     title: "Can't open",
     description: "This file could not be opened.",
-    alt: "GeniusFiles robot in front of a locked file",
   },
   lowSpace: {
     title: "Not enough storage",
     description:
       "There isn't enough free space to finish this operation. Free up some space, then try again.",
-    alt: "GeniusFiles robot overwhelmed by a pile of files, storage gauge full",
   },
   unknownError: {
     title: "Unknown error",
     description: "Something unexpected happened. Please try again in a moment.",
-    alt: "Puzzled GeniusFiles robot surrounded by question marks",
   },
   operationFailed: {
     title: "Operation failed",
     description: "The requested action could not be completed. Check the details, then try again.",
-    alt: "GeniusFiles robot holding a document marked with a red cross",
   },
 };
 
@@ -293,94 +257,76 @@ const ES: Bundle = {
   files: {
     title: "Ningún archivo",
     description: "Aquí todavía no hay nada que mostrar.",
-    alt: "Robot GeniusFiles con una carpeta vacía",
   },
   documents: {
     title: "Ningún documento",
     description: "Tus documentos aparecerán aquí.",
-    alt: "Robot GeniusFiles con una página en blanco",
   },
   images: {
     title: "Ninguna imagen",
     description: "Tus fotos e imágenes aparecerán aquí.",
-    alt: "Robot GeniusFiles con un marco de fotos vacío",
   },
   videos: {
     title: "Ningún vídeo",
     description: "Tus vídeos aparecerán aquí.",
-    alt: "Robot GeniusFiles con una claqueta de cine",
   },
   audio: {
     title: "Ninguna música",
     description: "Tu música y grabaciones aparecerán aquí.",
-    alt: "Robot GeniusFiles junto a unos auriculares",
   },
   downloads: {
     title: "Ninguna descarga",
     description: "Los archivos que descargues aparecerán aquí.",
-    alt: "Robot GeniusFiles junto a una flecha de descarga",
   },
   favorites: {
     title: "Ningún favorito",
     description: "Marca un archivo con una estrella para encontrarlo aquí.",
-    alt: "Robot GeniusFiles sosteniendo una estrella",
   },
   trash: {
     title: "Papelera vacía",
     description: "Los elementos eliminados aparecen aquí antes de borrarse definitivamente.",
-    alt: "Robot GeniusFiles junto a una papelera vacía",
   },
   search: {
     title: "Ningún resultado",
     description: "Prueba otra palabra clave o ajusta los filtros.",
-    alt: "Robot GeniusFiles buscando con una lupa",
   },
   folder: {
     title: "Carpeta vacía",
     description: "Esta carpeta todavía no contiene nada.",
-    alt: "Robot GeniusFiles detrás de una carpeta vacía",
   },
   storage: {
     title: "Almacenamiento inaccesible",
     description: "No se puede acceder a esta ubicación de almacenamiento.",
-    alt: "Robot GeniusFiles ante un disco bloqueado",
   },
   permission: {
     title: "Permiso denegado",
     description: "Permite que GeniusFiles acceda a tus archivos.",
-    alt: "Robot GeniusFiles ante una puerta blindada cerrada",
   },
   network: {
     title: "Error de red",
     description: "Comprueba tu conexión a Internet e inténtalo de nuevo.",
-    alt: "Robot GeniusFiles junto a una señal de red interrumpida",
   },
   notFound: {
     title: "Archivo no encontrado",
     description: "Este archivo ya no existe o se ha movido.",
-    alt: "Robot GeniusFiles buscando un archivo desaparecido",
   },
   openFailed: {
     title: "No se puede abrir",
     description: "No se ha podido abrir este archivo.",
-    alt: "Robot GeniusFiles ante un archivo bloqueado",
   },
   lowSpace: {
     title: "Espacio insuficiente",
     description:
       "No hay suficiente espacio libre para completar esta operación. Libera espacio e inténtalo de nuevo.",
-    alt: "Robot GeniusFiles desbordado por una pila de archivos, indicador de almacenamiento lleno",
   },
   unknownError: {
     title: "Error desconocido",
     description: "Se ha producido un error inesperado. Inténtalo de nuevo en unos instantes.",
-    alt: "Robot GeniusFiles perplejo rodeado de signos de interrogación",
   },
   operationFailed: {
     title: "Operación fallida",
     description:
       "No se ha podido completar la acción solicitada. Comprueba los datos e inténtalo de nuevo.",
-    alt: "Robot GeniusFiles sosteniendo un documento con una cruz roja",
   },
 };
 
@@ -388,94 +334,76 @@ const PT: Bundle = {
   files: {
     title: "Nenhum ficheiro",
     description: "Ainda não há nada para mostrar aqui.",
-    alt: "Robô GeniusFiles com uma pasta vazia",
   },
   documents: {
     title: "Nenhum documento",
     description: "Os seus documentos aparecerão aqui.",
-    alt: "Robô GeniusFiles com uma página em branco",
   },
   images: {
     title: "Nenhuma imagem",
     description: "As suas fotos e imagens aparecerão aqui.",
-    alt: "Robô GeniusFiles com uma moldura vazia",
   },
   videos: {
     title: "Nenhum vídeo",
     description: "Os seus vídeos aparecerão aqui.",
-    alt: "Robô GeniusFiles com uma claquete de cinema",
   },
   audio: {
     title: "Nenhuma música",
     description: "As suas músicas e gravações aparecerão aqui.",
-    alt: "Robô GeniusFiles ao lado de auscultadores",
   },
   downloads: {
     title: "Nenhum download",
     description: "Os ficheiros que transferir aparecerão aqui.",
-    alt: "Robô GeniusFiles junto a uma seta de download",
   },
   favorites: {
     title: "Nenhum favorito",
     description: "Marque um ficheiro com uma estrela para o encontrar aqui.",
-    alt: "Robô GeniusFiles a segurar uma estrela",
   },
   trash: {
     title: "Reciclagem vazia",
     description: "Os itens eliminados aparecem aqui antes de serem apagados definitivamente.",
-    alt: "Robô GeniusFiles ao lado de um cesto vazio",
   },
   search: {
     title: "Nenhum resultado",
     description: "Tente outra palavra-chave ou ajuste os filtros.",
-    alt: "Robô GeniusFiles a procurar com uma lupa",
   },
   folder: {
     title: "Pasta vazia",
     description: "Esta pasta ainda não contém nada.",
-    alt: "Robô GeniusFiles atrás de uma pasta vazia",
   },
   storage: {
     title: "Armazenamento inacessível",
     description: "Não é possível acessar este local de armazenamento.",
-    alt: "Robô GeniusFiles diante de um disco bloqueado",
   },
   permission: {
     title: "Permissão recusada",
     description: "Autorize o GeniusFiles a acessar os seus ficheiros.",
-    alt: "Robô GeniusFiles diante de uma porta blindada fechada",
   },
   network: {
     title: "Erro de rede",
     description: "Verifique a sua ligação à Internet e tente novamente.",
-    alt: "Robô GeniusFiles junto a um sinal de rede interrompido",
   },
   notFound: {
     title: "Ficheiro não encontrado",
     description: "Este ficheiro já não existe ou foi movido.",
-    alt: "Robô GeniusFiles à procura de um ficheiro desaparecido",
   },
   openFailed: {
     title: "Não foi possível abrir",
     description: "Não foi possível abrir este ficheiro.",
-    alt: "Robô GeniusFiles diante de um ficheiro bloqueado",
   },
   lowSpace: {
     title: "Espaço insuficiente",
     description:
       "Não há espaço livre suficiente para concluir esta operação. Liberte espaço e tente novamente.",
-    alt: "Robô GeniusFiles submerso numa pilha de ficheiros, indicador de armazenamento cheio",
   },
   unknownError: {
     title: "Erro desconhecido",
     description: "Ocorreu um erro inesperado. Tente novamente dentro de alguns instantes.",
-    alt: "Robô GeniusFiles perplexo rodeado de pontos de interrogação",
   },
   operationFailed: {
     title: "Falha na operação",
     description:
       "Não foi possível concluir a ação solicitada. Verifique os dados e tente novamente.",
-    alt: "Robô GeniusFiles a segurar um documento com uma cruz vermelha",
   },
 };
 
@@ -483,95 +411,77 @@ const DE: Bundle = {
   files: {
     title: "Keine Dateien",
     description: "Hier gibt es noch nichts anzuzeigen.",
-    alt: "GeniusFiles-Roboter mit einem leeren Ordner",
   },
   documents: {
     title: "Keine Dokumente",
     description: "Ihre Dokumente erscheinen hier.",
-    alt: "GeniusFiles-Roboter mit einem leeren Blatt",
   },
   images: {
     title: "Keine Bilder",
     description: "Ihre Fotos und Bilder erscheinen hier.",
-    alt: "GeniusFiles-Roboter mit einem leeren Bilderrahmen",
   },
   videos: {
     title: "Keine Videos",
     description: "Ihre Videos erscheinen hier.",
-    alt: "GeniusFiles-Roboter mit einer Filmklappe",
   },
   audio: {
     title: "Keine Musik",
     description: "Ihre Musik und Aufnahmen erscheinen hier.",
-    alt: "GeniusFiles-Roboter neben einem Kopfhörer",
   },
   downloads: {
     title: "Keine Downloads",
     description: "Heruntergeladene Dateien erscheinen hier.",
-    alt: "GeniusFiles-Roboter neben einem Download-Pfeil",
   },
   favorites: {
     title: "Keine Favoriten",
     description: "Markieren Sie eine Datei mit einem Stern, um sie hier zu finden.",
-    alt: "GeniusFiles-Roboter mit einem Stern",
   },
   trash: {
     title: "Papierkorb ist leer",
     description: "Gelöschte Elemente erscheinen hier, bevor sie endgültig entfernt werden.",
-    alt: "GeniusFiles-Roboter neben einem leeren Papierkorb",
   },
   search: {
     title: "Keine Ergebnisse",
     description: "Versuchen Sie ein anderes Stichwort oder passen Sie die Filter an.",
-    alt: "GeniusFiles-Roboter mit einer Lupe",
   },
   folder: {
     title: "Leerer Ordner",
     description: "Dieser Ordner enthält noch nichts.",
-    alt: "GeniusFiles-Roboter hinter einem leeren Ordner",
   },
   storage: {
     title: "Speicher nicht erreichbar",
     description: "Auf diesen Speicherort kann nicht zugegriffen werden.",
-    alt: "GeniusFiles-Roboter vor einer gesperrten Festplatte",
   },
   permission: {
     title: "Zugriff verweigert",
     description: "Erlauben Sie GeniusFiles den Zugriff auf Ihre Dateien.",
-    alt: "GeniusFiles-Roboter vor einer verschlossenen Sicherheitstür",
   },
   network: {
     title: "Netzwerkfehler",
     description: "Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
-    alt: "GeniusFiles-Roboter neben einem unterbrochenen Netzsignal",
   },
   notFound: {
     title: "Datei nicht gefunden",
     description: "Diese Datei existiert nicht mehr oder wurde verschoben.",
-    alt: "GeniusFiles-Roboter sucht eine verschwundene Datei",
   },
   openFailed: {
     title: "Öffnen nicht möglich",
     description: "Diese Datei konnte nicht geöffnet werden.",
-    alt: "GeniusFiles-Roboter vor einer gesperrten Datei",
   },
   lowSpace: {
     title: "Speicher voll",
     description:
       "Es ist nicht genügend freier Speicher vorhanden, um diesen Vorgang abzuschließen. Schaffe Platz und versuche es erneut.",
-    alt: "GeniusFiles-Roboter unter einem Berg von Dateien, Speicheranzeige voll",
   },
   unknownError: {
     title: "Unbekannter Fehler",
     description:
       "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es in einem Moment erneut.",
-    alt: "Ratloser GeniusFiles-Roboter zwischen Fragezeichen",
   },
   operationFailed: {
     title: "Vorgang fehlgeschlagen",
     description:
       "Die gewünschte Aktion konnte nicht ausgeführt werden. Prüfe die Angaben und versuche es erneut.",
-    alt: "GeniusFiles-Roboter mit einem Dokument, das ein rotes Kreuz zeigt",
   },
 };
 
@@ -579,93 +489,75 @@ const IT: Bundle = {
   files: {
     title: "Nessun file",
     description: "Qui non c'è ancora nulla da mostrare.",
-    alt: "Robot GeniusFiles con una cartella vuota",
   },
   documents: {
     title: "Nessun documento",
     description: "I tuoi documenti compariranno qui.",
-    alt: "Robot GeniusFiles con un foglio bianco",
   },
   images: {
     title: "Nessuna immagine",
     description: "Le tue foto e immagini compariranno qui.",
-    alt: "Robot GeniusFiles con una cornice vuota",
   },
   videos: {
     title: "Nessun video",
     description: "I tuoi video compariranno qui.",
-    alt: "Robot GeniusFiles con un ciak da cinema",
   },
   audio: {
     title: "Nessuna musica",
     description: "La tua musica e le registrazioni compariranno qui.",
-    alt: "Robot GeniusFiles accanto a delle cuffie",
   },
   downloads: {
     title: "Nessun download",
     description: "I file che scarichi compariranno qui.",
-    alt: "Robot GeniusFiles accanto a una freccia di download",
   },
   favorites: {
     title: "Nessun preferito",
     description: "Aggiungi una stella a un file per ritrovarlo qui.",
-    alt: "Robot GeniusFiles con una stella",
   },
   trash: {
     title: "Cestino vuoto",
     description: "Gli elementi eliminati compaiono qui prima di essere rimossi definitivamente.",
-    alt: "Robot GeniusFiles accanto a un cestino vuoto",
   },
   search: {
     title: "Nessun risultato",
     description: "Prova un'altra parola chiave o modifica i filtri.",
-    alt: "Robot GeniusFiles che cerca con una lente",
   },
   folder: {
     title: "Cartella vuota",
     description: "Questa cartella non contiene ancora nulla.",
-    alt: "Robot GeniusFiles dietro una cartella vuota",
   },
   storage: {
     title: "Archiviazione inaccessibile",
     description: "Impossibile accedere a questa posizione di archiviazione.",
-    alt: "Robot GeniusFiles davanti a un disco bloccato",
   },
   permission: {
     title: "Autorizzazione negata",
     description: "Consenti a GeniusFiles di accedere ai tuoi file.",
-    alt: "Robot GeniusFiles davanti a una porta blindata chiusa",
   },
   network: {
     title: "Errore di rete",
     description: "Controlla la connessione Internet e riprova.",
-    alt: "Robot GeniusFiles accanto a un segnale di rete interrotto",
   },
   notFound: {
     title: "File non trovato",
     description: "Questo file non esiste più o è stato spostato.",
-    alt: "Robot GeniusFiles alla ricerca di un file scomparso",
   },
   openFailed: {
     title: "Apertura impossibile",
     description: "Impossibile aprire questo file.",
-    alt: "Robot GeniusFiles davanti a un file bloccato",
   },
   lowSpace: {
     title: "Spazio insufficiente",
     description:
       "Lo spazio disponibile non è sufficiente per completare questa operazione. Libera spazio e riprova.",
-    alt: "Robot GeniusFiles sommerso da una pila di file, indicatore di memoria pieno",
   },
   unknownError: {
     title: "Errore sconosciuto",
     description: "Si è verificato un errore inatteso. Riprova tra qualche istante.",
-    alt: "Robot GeniusFiles perplesso circondato da punti di domanda",
   },
   operationFailed: {
     title: "Operazione non riuscita",
     description: "L'azione richiesta non è stata completata. Verifica i dati e riprova.",
-    alt: "Robot GeniusFiles con un documento segnato da una croce rossa",
   },
 };
 
@@ -673,92 +565,74 @@ const AR: Bundle = {
   files: {
     title: "لا توجد ملفات",
     description: "لا يوجد شيء لعرضه هنا بعد.",
-    alt: "روبوت GeniusFiles يحمل مجلدًا فارغًا",
   },
   documents: {
     title: "لا توجد مستندات",
     description: "ستظهر مستنداتك هنا.",
-    alt: "روبوت GeniusFiles يحمل ورقة فارغة",
   },
   images: {
     title: "لا توجد صور",
     description: "ستظهر صورك هنا.",
-    alt: "روبوت GeniusFiles يحمل إطار صورة فارغًا",
   },
   videos: {
     title: "لا توجد فيديوهات",
     description: "ستظهر مقاطع الفيديو هنا.",
-    alt: "روبوت GeniusFiles يحمل لوح تصوير",
   },
   audio: {
     title: "لا توجد موسيقى",
     description: "ستظهر موسيقاك وتسجيلاتك هنا.",
-    alt: "روبوت GeniusFiles بجانب سماعات رأس",
   },
   downloads: {
     title: "لا توجد تنزيلات",
     description: "ستظهر الملفات التي تنزّلها هنا.",
-    alt: "روبوت GeniusFiles بجانب سهم تنزيل",
   },
   favorites: {
     title: "لا توجد مفضلات",
     description: "أضف نجمة إلى ملف لتجده هنا.",
-    alt: "روبوت GeniusFiles يحمل نجمة",
   },
   trash: {
     title: "سلة المحذوفات فارغة",
     description: "تظهر العناصر المحذوفة هنا قبل حذفها نهائيًا.",
-    alt: "روبوت GeniusFiles بجانب سلة فارغة",
   },
   search: {
     title: "لا توجد نتائج",
     description: "جرّب كلمة أخرى أو عدّل عوامل التصفية.",
-    alt: "روبوت GeniusFiles يبحث بعدسة مكبّرة",
   },
   folder: {
     title: "مجلد فارغ",
     description: "لا يحتوي هذا المجلد على أي عنصر بعد.",
-    alt: "روبوت GeniusFiles خلف مجلد فارغ",
   },
   storage: {
     title: "وحدة التخزين غير متاحة",
     description: "لا يمكن الوصول إلى موقع التخزين هذا.",
-    alt: "روبوت GeniusFiles أمام قرص مقفل",
   },
   permission: {
     title: "تم رفض الإذن",
     description: "اسمح لتطبيق GeniusFiles بالوصول إلى ملفاتك.",
-    alt: "روبوت GeniusFiles أمام باب أمني مقفل",
   },
   network: {
     title: "خطأ في الشبكة",
     description: "تحقّق من اتصالك بالإنترنت ثم أعد المحاولة.",
-    alt: "روبوت GeniusFiles بجانب إشارة شبكة منقطعة",
   },
   notFound: {
     title: "الملف غير موجود",
     description: "هذا الملف لم يعد موجودًا أو تم نقله.",
-    alt: "روبوت GeniusFiles يبحث عن ملف مفقود",
   },
   openFailed: {
     title: "تعذّر الفتح",
     description: "تعذّر فتح هذا الملف.",
-    alt: "روبوت GeniusFiles أمام ملف مقفل",
   },
   lowSpace: {
     title: "مساحة التخزين غير كافية",
     description: "لا تتوفر مساحة كافية لإكمال هذه العملية. حرّر بعض المساحة ثم أعد المحاولة.",
-    alt: "روبوت GeniusFiles محاط بكومة من الملفات ومؤشر تخزين ممتلئ",
   },
   unknownError: {
     title: "خطأ غير معروف",
     description: "حدث خطأ غير متوقع. يُرجى إعادة المحاولة بعد لحظات.",
-    alt: "روبوت GeniusFiles حائر تحيط به علامات استفهام",
   },
   operationFailed: {
     title: "تعذّر إتمام العملية",
     description: "لم يتم تنفيذ الإجراء المطلوب. تحقّق من المعلومات ثم أعد المحاولة.",
-    alt: "روبوت GeniusFiles يحمل مستندًا يظهر عليه صليب أحمر",
   },
 };
 
@@ -865,47 +739,40 @@ const CHAT_OFFLINE: Record<string, ChatOfflineCopy> = {
     title: "Aucune connexion Internet",
     description:
       "Impossible d'envoyer votre message pour le moment. Vérifiez votre connexion puis réessayez.",
-    alt: "Robot GeniusFiles à côté d'un signal réseau interrompu",
     retry: "Réessayer",
   },
   en: {
     title: "No Internet connection",
     description: "Your message can't be sent right now. Check your connection, then try again.",
-    alt: "GeniusFiles robot next to a broken network signal",
     retry: "Try again",
   },
   es: {
     title: "Sin conexión a Internet",
     description:
       "No se puede enviar tu mensaje en este momento. Comprueba tu conexión e inténtalo de nuevo.",
-    alt: "Robot GeniusFiles junto a una señal de red interrumpida",
     retry: "Reintentar",
   },
   pt: {
     title: "Sem ligação à Internet",
     description:
       "Não é possível enviar a sua mensagem neste momento. Verifique a ligação e tente novamente.",
-    alt: "Robô GeniusFiles junto a um sinal de rede interrompido",
     retry: "Tentar novamente",
   },
   de: {
     title: "Keine Internetverbindung",
     description:
       "Ihre Nachricht kann derzeit nicht gesendet werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
-    alt: "GeniusFiles-Roboter neben einem unterbrochenen Netzsignal",
     retry: "Erneut versuchen",
   },
   it: {
     title: "Nessuna connessione a Internet",
     description:
       "Impossibile inviare il messaggio in questo momento. Controlla la connessione e riprova.",
-    alt: "Robot GeniusFiles accanto a un segnale di rete interrotto",
     retry: "Riprova",
   },
   ar: {
     title: "لا يوجد اتصال بالإنترنت",
     description: "تعذّر إرسال رسالتك الآن. تحقق من اتصالك ثم أعد المحاولة.",
-    alt: "روبوت GeniusFiles بجانب إشارة شبكة منقطعة",
     retry: "إعادة المحاولة",
   },
 };
