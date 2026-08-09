@@ -1115,60 +1115,6 @@ class GeniusFilesNativePlugin : Plugin() {
         }
     }
 
-    /**
-     * Calques de l'étape 7. Les coordonnées sont normalisées dans l'image
-     * de sortie, exactement comme dans l'aperçu de l'application.
-     */
-    private fun readLayers(o: JSObject): List<OverlayLayer> {
-        val arr = try { o.optJSONArray("layers") } catch (_: Throwable) { null } ?: return emptyList()
-        val out = ArrayList<OverlayLayer>(arr.length())
-        for (i in 0 until arr.length()) {
-            val l = arr.optJSONObject(i) ?: continue
-            val kind = l.optString("kind", "")
-            if (kind.isEmpty()) continue
-            val strokes = ArrayList<OverlayStroke>()
-            l.optJSONArray("strokes")?.let { sa ->
-                for (j in 0 until sa.length()) {
-                    val so = sa.optJSONObject(j) ?: continue
-                    val pa = so.optJSONArray("points") ?: continue
-                    val pts = FloatArray(pa.length())
-                    for (k in 0 until pa.length()) pts[k] = pa.optDouble(k, 0.0).toFloat()
-                    strokes.add(
-                        OverlayStroke(
-                            points = pts,
-                            color = parseColor(so.optString("color", "#ff3b30"), Color.RED),
-                            width = so.optDouble("width", 0.012).toFloat(),
-                        )
-                    )
-                }
-            }
-            out.add(
-                OverlayLayer(
-                    kind = kind,
-                    startUs = (l.optDouble("startMs", 0.0) * 1000).toLong().coerceAtLeast(0),
-                    endUs = (l.optDouble("endMs", 0.0) * 1000).toLong(),
-                    x = l.optDouble("x", 0.0).toFloat(),
-                    y = l.optDouble("y", 0.0).toFloat(),
-                    w = l.optDouble("w", 1.0).toFloat(),
-                    h = l.optDouble("h", 1.0).toFloat(),
-                    rotation = l.optDouble("rotation", 0.0).toFloat(),
-                    opacity = l.optDouble("opacity", 1.0).toFloat(),
-                    text = l.optString("text", ""),
-                    textColor = parseColor(l.optString("color", "#ffffff"), Color.WHITE),
-                    background = parseColor(l.optString("background", ""), Color.TRANSPARENT),
-                    fontSize = l.optDouble("fontSize", 0.09).toFloat(),
-                    bold = l.optBoolean("bold", true),
-                    align = l.optString("align", "center"),
-                    path = l.optString("path", ""),
-                    strokes = strokes,
-                    mode = l.optString("mode", "blur"),
-                    strength = l.optDouble("strength", 0.6).toFloat(),
-                )
-            )
-        }
-        return out.filter { it.endUs > it.startUs }
-    }
-
     /** Accepte `#rrggbb`, `#rrggbbaa` (usage web) et `#aarrggbb`. */
     private fun parseColor(value: String, fallback: Int): Int {
         val v = value.trim()
