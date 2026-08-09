@@ -14,18 +14,15 @@ import {
   useSyncExternalStore,
   type FormEvent,
 } from "react";
-import {
-  ArrowUp,
-  Square,
-  History,
-  PenSquare,
-  ShieldCheck,
-  MessagesSquare,
-  WifiOff,
-} from "lucide-react";
+import { ArrowUp, Square, Menu, PenSquare, ShieldCheck, MessagesSquare, WifiOff } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AssistantMarkdown } from "@/components/assistant/AssistantMarkdown";
-import { ConversationsSheet } from "@/components/assistant/ConversationsSheet";
+import { AssistantDrawer } from "@/components/assistant/AssistantDrawer";
+import {
+  PipelineTrace,
+  type PipelineStep,
+  type PipelineState,
+} from "@/components/assistant/PipelineTrace";
 import { TemplateMarquee } from "@/components/assistant/TemplateMarquee";
 import { chatApiUrl } from "@/lib/ai/api-url";
 import { runEngineTool } from "@/lib/ai/tools/execute";
@@ -124,25 +121,14 @@ const ACTION_LABELS: Record<string, string> = {
   filter: "Filtrage des fichiers…",
 };
 
-/**
- * Étapes d'ouverture — jouées tant que le moteur n'a pas encore été
- * sollicité. Le dernier libellé reste affiché : jamais de temps mort.
- */
-const THINK_SCRIPT = [
-  "Compréhension de la demande…",
-  "Préparation de la commande…",
-  "Transmission au moteur…",
-];
-
-/** Étapes de sortie — après le moteur, avant le premier mot de réponse. */
-const WRAP_SCRIPT = [
-  "Traitement des résultats…",
-  "Interprétation des résultats…",
-  "Préparation de la réponse…",
-];
-
-/** Affiché pendant que la réponse s'écrit. */
-const WRITING_LABEL = "Rédaction de la réponse…";
+/** Libellés des étapes de la pipeline (aucun vocabulaire technique). */
+const STEP_LABELS = {
+  understand: "Compréhension de la demande",
+  plan: "Analyse et planification",
+  execute: "Exécution par le moteur local",
+  verify: "Vérification des résultats",
+  respond: "Rédaction de la réponse",
+} as const;
 
 type ToolPart = {
   type: string;
@@ -218,7 +204,7 @@ function AssistantPage() {
   // Vrai uniquement après une tentative d'envoi hors connexion : l'état
   // disparaît dès le retour du réseau, sans redémarrage.
   const [offlineBlocked, setOfflineBlocked] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string>(() => newId());
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
