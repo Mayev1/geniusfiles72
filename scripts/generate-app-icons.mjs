@@ -170,14 +170,24 @@ async function compose({ size, ratio, background, output, source = markBuf }) {
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
 console.log(`→ Composition des masters sous resources/`);
+// Résolution réelle du master détouré : aucune ressource ne doit demander
+// une marque plus grande (interdiction d'agrandissement = aucun flou).
+const markMeta = await sharp(markBuf).metadata();
+const MARK_SIDE = Math.max(markMeta.width ?? 1024, markMeta.height ?? 1024);
 // Icône legacy (API < 26) : le lanceur masque directement cette tuile, la
-// marque peut donc occuper presque tout le carré, sur le fond plaque.
-await compose({ size: 1024, ratio: 1.0, background: PLATE, output: join(RESOURCES, "icon.png") });
+// marque occupe donc le carré entier — plafonnée à la résolution du master,
+// le reste étant comblé par le fond plaque (invisible : même couleur).
+await compose({
+  size: 1024,
+  ratio: Math.min(1, MARK_SIDE / 1024),
+  background: PLATE,
+  output: join(RESOURCES, "icon.png"),
+});
 // Premier plan adaptatif : 0.667 = EXACTEMENT la fenêtre visible 72/108 →
 // la marque remplit toute la zone affichée par le lanceur (taille visuelle
 // comparable aux autres applications) sans jamais être rognée. Aller au-delà
 // ferait couper les bords de la plaque sur les masques circulaires.
-// Le master officiel (1059²) est réduit, jamais agrandi : aucun flou.
+// Le master officiel est réduit, jamais agrandi : aucun flou.
 await compose({
   size: 1024,
   ratio: 0.667,
