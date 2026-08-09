@@ -1,31 +1,16 @@
 /**
- * Écrans vides illustrés de GeniusFiles.
+ * Écrans vides de GeniusFiles.
  *
- * Un seul endroit décrit les cinq états vides « premium » : illustration
- * officielle, titre, description et texte alternatif pour les lecteurs
- * d'écran. Rien n'est écrit en dur dans les composants : la couche UI
+ * Un seul endroit décrit les titres et descriptions des états vides et
+ * d'erreur. Rien n'est écrit en dur dans les composants : la couche UI
  * reçoit uniquement un identifiant d'état et les chaînes sont résolues
  * ici, dans la langue active de l'appareil.
  *
  * Ajouter une langue = ajouter une entrée dans `STRINGS`. Aucun autre
  * fichier à toucher.
  */
-import emptyFiles from "@/assets/empty/empty-files.png.asset.json";
-import emptyDocuments from "@/assets/empty/empty-documents.png.asset.json";
-import emptyImages from "@/assets/empty/empty-images.png.asset.json";
-import emptyVideos from "@/assets/empty/empty-videos.png.asset.json";
-import emptyAudio from "@/assets/empty/empty-audio.png.asset.json";
-import emptyDownloads from "@/assets/empty/empty-downloads.png.asset.json";
-import emptyTrash from "@/assets/empty/empty-trash.png.asset.json";
-import emptySearch from "@/assets/empty/empty-search.png.asset.json";
-import emptyFolder from "@/assets/empty/empty-folder.png.asset.json";
-import emptyNetwork from "@/assets/empty/empty-network.png.asset.json";
-import emptyOpenFail from "@/assets/empty/empty-openfail.png.asset.json";
-import emptyLowSpace from "@/assets/empty/empty-lowspace.png.asset.json";
-import emptyUnknown from "@/assets/empty/empty-unknown.png.asset.json";
-import emptyOpFail from "@/assets/empty/empty-opfail.png.asset.json";
 
-/** États vides illustrés disponibles. */
+/** États vides disponibles. */
 export type EmptyIllustrationId =
   | "files"
   | "documents"
@@ -46,58 +31,7 @@ export type EmptyIllustrationId =
   | "unknownError"
   | "operationFailed";
 
-/** Illustrations officielles (PNG fond transparent, résolution d'origine). */
-export const EMPTY_ILLUSTRATION_SRC: Partial<Record<EmptyIllustrationId, string>> = {
-  files: emptyFiles.url,
-  documents: emptyDocuments.url,
-  images: emptyImages.url,
-  videos: emptyVideos.url,
-  audio: emptyAudio.url,
-  downloads: emptyDownloads.url,
-  trash: emptyTrash.url,
-  search: emptySearch.url,
-  folder: emptyFolder.url,
-  network: emptyNetwork.url,
-  openFailed: emptyOpenFail.url,
-  lowSpace: emptyLowSpace.url,
-  unknownError: emptyUnknown.url,
-  operationFailed: emptyOpFail.url,
-};
-
-/**
- * Cadrage optique de chaque illustration.
- *
- * Les PNG officiels sont en 1024x1536 avec une large zone transparente
- * autour du sujet, et le sujet n'est pas placé au même endroit d'un
- * visuel à l'autre. Ces valeurs — mesurées sur la boîte englobante
- * réelle du dessin — permettent d'afficher chaque illustration dans une
- * fenêtre carrée, sujet centré et à taille perçue identique, sans
- * jamais recadrer le dessin ni déformer ses proportions.
- *
- * Exprimé en pourcentage du côté de la fenêtre carrée.
- */
-export type EmptyIllustrationFrame = { width: number; left: number; top: number };
-
-export const EMPTY_ILLUSTRATION_FRAME: Partial<
-  Record<EmptyIllustrationId, EmptyIllustrationFrame>
-> = {
-  files: { width: 113.6, left: -6.8, top: -32.4 },
-  documents: { width: 113.6, left: -6.8, top: -32.4 },
-  images: { width: 113.6, left: -6.8, top: -32.4 },
-  videos: { width: 113.6, left: -6.8, top: -32.4 },
-  audio: { width: 113.6, left: -6.8, top: -32.4 },
-  downloads: { width: 119.6, left: -11.1, top: -38.7 },
-  trash: { width: 126.8, left: -21.6, top: -55.2 },
-  search: { width: 155.3, left: -24.8, top: -57.2 },
-  folder: { width: 124.2, left: -9.9, top: -42 },
-  network: { width: 112.1, left: -5.6, top: -30 },
-  openFailed: { width: 128, left: -11.9, top: -65 },
-  lowSpace: { width: 94.7, left: 2.5, top: -13.7 },
-  unknownError: { width: 123.7, left: -12.5, top: -33.6 },
-  operationFailed: { width: 95.1, left: -9.1, top: -8.8 },
-};
-
-type Entry = { title: string; description: string; alt: string };
+type Entry = { title: string; description: string };
 type Bundle = Record<EmptyIllustrationId, Entry>;
 
 const FR: Bundle = {
@@ -659,7 +593,7 @@ function activeLanguage(): string {
   return "fr";
 }
 
-/** Titre / description / texte alternatif d'un état vide illustré. */
+/** Titre et description d'un état vide. */
 export function emptyIllustrationCopy(id: EmptyIllustrationId): Entry {
   const bundle = STRINGS[activeLanguage()] ?? FR;
   return bundle[id] ?? FR[id];
@@ -728,11 +662,8 @@ export function emptyActionLabel(id: EmptyActionId): string {
 
 /**
  * État « hors connexion » du module de chat.
- *
- * Réutilise l'illustration « Erreur réseau » déjà embarquée : aucune
- * ressource supplémentaire n'est ajoutée au bundle.
  */
-export type ChatOfflineCopy = { title: string; description: string; alt: string; retry: string };
+export type ChatOfflineCopy = { title: string; description: string; retry: string };
 
 const CHAT_OFFLINE: Record<string, ChatOfflineCopy> = {
   fr: {
