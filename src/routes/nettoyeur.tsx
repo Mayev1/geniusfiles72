@@ -319,7 +319,6 @@ function CleanerPage() {
         ) : null}
       </div>
 
-
       {permission === "denied" ? (
         <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-[12.5px] leading-relaxed text-foreground">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />

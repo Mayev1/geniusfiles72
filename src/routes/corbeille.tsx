@@ -219,8 +219,7 @@ function TrashPage() {
     const q = query.trim().toLowerCase();
     const filtered = q
       ? items.filter(
-          (i) =>
-            i.name.toLowerCase().includes(q) || i.originalPath.toLowerCase().includes(q),
+          (i) => i.name.toLowerCase().includes(q) || i.originalPath.toLowerCase().includes(q),
         )
       : items;
     const copy = [...filtered];
@@ -313,9 +312,12 @@ function TrashPage() {
     try {
       const res = await permanentDelete(selectedItems);
       if (res.failed.length === 0) {
-        toast.success(res.deleted === 1 ? "Élément supprimé" : `${res.deleted} éléments supprimés`, {
-          description: `Suppression définitive · ${freedLabel(freedBytes)} libérés.`,
-        });
+        toast.success(
+          res.deleted === 1 ? "Élément supprimé" : `${res.deleted} éléments supprimés`,
+          {
+            description: `Suppression définitive · ${freedLabel(freedBytes)} libérés.`,
+          },
+        );
       } else {
         toast.info(`${res.deleted} supprimé(s), ${res.failed.length} en échec`);
       }
@@ -350,7 +352,9 @@ function TrashPage() {
   return (
     <AppShell>
       <PageHeader
-        title={anySelected ? `${selected.size} sélectionné${selected.size > 1 ? "s" : ""}` : "Corbeille"}
+        title={
+          anySelected ? `${selected.size} sélectionné${selected.size > 1 ? "s" : ""}` : "Corbeille"
+        }
         subtitle={anySelected ? "Appuyez sur un élément pour l'ajouter ou le retirer" : subtitle}
         leading={
           <BackButton className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground" />
@@ -551,7 +555,11 @@ function TrashPage() {
                         aria-pressed={isSel}
                         className="gf-press flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground"
                       >
-                        {isSel ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                        {isSel ? (
+                          <CheckSquare className="h-4 w-4" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
                       </button>
                       {canPreview ? (
                         <button
