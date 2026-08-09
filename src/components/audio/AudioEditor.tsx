@@ -220,6 +220,14 @@ export function AudioEditor({
   const [selectedLane, setSelectedLane] = useState<LaneId>("main");
   const [trackPickerOpen, setTrackPickerOpen] = useState(false);
   /**
+   * Synchronisation : piste maître et BPM **manuel** de la piste
+   * principale. Les BPM des pistes ajoutées vivent sur la piste elle-même
+   * (donc dans l'historique). Aucun BPM n'est jamais détecté.
+   */
+  const [masterLane, setMasterLane] = useState<LaneId>("main");
+  const [mainBpm, setMainBpm] = useState<number>(DEFAULT_BPM);
+
+  /**
    * Historique unifié : chaque étape restaure ensemble l'audio (opérations,
    * pistes) et l'état visuel (curseur, sélection, fenêtre de zoom).
    * `markStructural` demande une étape immédiate (sinon les changements
