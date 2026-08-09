@@ -19,6 +19,7 @@ import {
   ArrowRight,
   CalendarClock,
   Check,
+  CheckCircle2,
   ChevronRight,
   Copy,
   History,
@@ -30,13 +31,13 @@ import {
   Wand2,
   Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { errorMessage } from "@/lib/errors/humanize";
 import {
   BottomSheet,
