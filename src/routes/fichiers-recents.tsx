@@ -26,7 +26,6 @@ import { UniversalViewer, type ViewerAction } from "@/components/viewer/Universa
 import { canPreview } from "@/lib/viewer/kinds";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
-import { videoEditorSearch, videoEditorSearchResuming } from "@/lib/video/routes";
 import { batchSummary, errorMessage } from "@/lib/errors/humanize";
 import { confirmCopy, progressLabel } from "@/lib/copy";
 import type { FileEntry, PathRef } from "@/lib/files/types";
@@ -252,12 +251,6 @@ function AddedFilesPage() {
             search: audioEditorSearch(parent, f),
           });
           break;
-        case "editVideo":
-          await navigate({
-            to: "/editeur-video",
-            search: videoEditorSearch(parent, f),
-          });
-          break;
         case "share":
           await doShare([f]);
           break;
@@ -293,13 +286,6 @@ function AddedFilesPage() {
       switch (action) {
         case "share":
           await doShare([f]);
-          break;
-        case "editVideo":
-          setDialog({ kind: "none" });
-          await navigate({
-            to: "/editeur-video",
-            search: videoEditorSearchResuming(parent, f),
-          });
           break;
         case "openWith":
           await openWithSystem(parent, f);

@@ -70,7 +70,6 @@ import { UniversalViewer, type ViewerAction } from "@/components/viewer/Universa
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
-import { videoEditorSearch, videoEditorSearchResuming } from "@/lib/video/routes";
 
 import {
   getExternalVolumes,
@@ -975,13 +974,6 @@ function FilesPage() {
               search: audioEditorSearch(path, entry),
             });
           break;
-        case "editVideo":
-          if (path)
-            void routerNavigate({
-              to: "/editeur-video",
-              search: videoEditorSearch(path, entry),
-            });
-          break;
       }
     },
     [openDetails, runShare, openArchive, openEntry, path, routerNavigate],
@@ -1022,14 +1014,6 @@ function FilesPage() {
           break;
         case "openWith":
           if (path) void openWithSystem(path, entry);
-          break;
-        case "editVideo":
-          setViewerName(null);
-          if (path)
-            void routerNavigate({
-              to: "/editeur-video",
-              search: videoEditorSearchResuming(path, entry),
-            });
           break;
       }
     },
