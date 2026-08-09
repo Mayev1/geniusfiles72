@@ -397,6 +397,8 @@ export function AudioEditor({
     position: number;
     view: WaveView;
     selectedLane: LaneId;
+    masterLane: LaneId;
+    mainBpm: number;
   };
   const historyRef = useRef<HistoryStep[]>([]);
   const [hIndex, setHIndex] = useState(0);
@@ -409,6 +411,8 @@ export function AudioEditor({
       a.cursor === b.cursor &&
       a.tracks === b.tracks &&
       a.selectedLane === b.selectedLane &&
+      a.masterLane === b.masterLane &&
+      a.mainBpm === b.mainBpm &&
       Math.abs(a.position - b.position) < 0.001 &&
       Math.abs(a.view.from - b.view.from) < 0.001 &&
       Math.abs(a.view.to - b.view.to) < 0.001 &&
@@ -424,7 +428,16 @@ export function AudioEditor({
   // devient une étape. Les gestes continus sont regroupés par une courte
   // pause ; les actions structurelles sont enregistrées immédiatement.
   useEffect(() => {
-    const step: HistoryStep = { cursor, tracks, selection, position, view, selectedLane };
+    const step: HistoryStep = {
+      cursor,
+      tracks,
+      selection,
+      position,
+      view,
+      selectedLane,
+      masterLane,
+      mainBpm,
+    };
     if (historyRef.current.length === 0) {
       historyRef.current = [step];
       setHIndex(0);
@@ -453,7 +466,18 @@ export function AudioEditor({
     if (playing) return;
     const t = window.setTimeout(commit, 320);
     return () => window.clearTimeout(t);
-  }, [cursor, tracks, selection, position, view, selectedLane, playing, sameStep]);
+  }, [
+    cursor,
+    tracks,
+    selection,
+    position,
+    view,
+    selectedLane,
+    masterLane,
+    mainBpm,
+    playing,
+    sameStep,
+  ]);
 
   const applyStep = useCallback((s: HistoryStep) => {
     applyingRef.current = true;
@@ -465,6 +489,8 @@ export function AudioEditor({
     setTracks(s.tracks);
     setSelection(s.selection);
     setSelectedLane(s.selectedLane);
+    setMasterLane(s.masterLane);
+    setMainBpm(s.mainBpm);
     positionRef.current = s.position;
     setPosition(s.position);
     setView(s.view);
@@ -1124,6 +1150,49 @@ export function AudioEditor({
     playerRef.current?.invalidate();
     toast.success("Pistes désynchronisées.");
   }, [markStructural]);
+
+  /**
+   * Un BPM corrigé après coup ne laisse jamais une piste mal alignée :
+   * dès que le tempo saisi (piste ou maître) ne correspond plus au facteur
+   * appliqué, l'audio est ré-étiré depuis la source. Regroupé par une
+   * courte pause pour ne pas recalculer à chaque frappe.
+   */
+  useEffect(() => {
+    const stale = tracks.filter((t) => {
+      if (!t.sync) return false;
+      const src = t.bpm ?? DEFAULT_BPM;
+      const target = bpmMap[t.sync.masterId] ?? t.sync.targetBpm;
+      return (
+        Math.abs(src - t.sync.sourceBpm) > 0.001 || Math.abs(target - t.sync.targetBpm) > 0.001
+      );
+    });
+    if (stale.length === 0) return;
+    const timer = window.setTimeout(() => {
+      const ids = new Set(stale.map((t) => t.id));
+      setTracks((prev) =>
+        prev.map((t) => {
+          if (!ids.has(t.id) || !t.sync) return t;
+          const src = normalizeBpm(t.bpm ?? DEFAULT_BPM);
+          const target = normalizeBpm(bpmMap[t.sync.masterId] ?? t.sync.targetBpm);
+          if (src == null || target == null) return t;
+          const base = t.baseClip ?? t.clip;
+          const baseOffset = t.baseOffset ?? t.offset;
+          const ratio = src / target;
+          const safe = Number.isFinite(ratio) && ratio > 0.1 && ratio < 10 ? ratio : 1;
+          return {
+            ...t,
+            baseClip: base,
+            baseOffset,
+            clip: Math.abs(safe - 1) < 0.0005 ? base : stretchWsola(base, safe),
+            offset: baseOffset,
+            sync: { ...t.sync, sourceBpm: src, targetBpm: target, ratio: safe },
+          };
+        }),
+      );
+      playerRef.current?.invalidate();
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [bpmMap, tracks]);
 
   const syncedCount = tracks.filter((t) => t.sync).length;
 
