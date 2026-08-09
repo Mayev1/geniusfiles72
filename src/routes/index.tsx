@@ -1024,7 +1024,7 @@ function FilesPage() {
 
   return (
     <AppShell>
-      {!path ? <div aria-hidden className="pt-safe" /> : null}
+      
       {path ? (
         <FilesTopBar
           title={currentTitle}
