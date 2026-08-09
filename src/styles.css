@@ -1353,15 +1353,10 @@ html.gf-immersive .gf-thumb-bar {
     transform: none;
   }
 }
-@utility gf-empty-illustration {
-  animation: gf-empty-rise 320ms var(--ease-standard) both;
-  will-change: opacity, transform;
-}
 @utility gf-empty-copy {
   animation: gf-empty-rise 300ms var(--ease-standard) 110ms both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .gf-empty-illustration,
   .gf-empty-copy {
     animation-duration: 1ms;
     animation-delay: 0ms;

@@ -32,7 +32,6 @@ import { confirmCopy, progressLabel } from "@/lib/copy";
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
-import { videoEditorSearch, videoEditorSearchResuming } from "@/lib/video/routes";
 import { sortEntries } from "@/lib/files/sort";
 import { loadFoldersFirst, loadSort, loadView, saveSort, saveView } from "@/lib/files/preferences";
 import type { FileEntry, PathRef, SortKey, SortOrder, ViewMode } from "@/lib/files/types";
@@ -567,12 +566,6 @@ function CategoryPage() {
             search: audioEditorSearch(parent, f),
           });
           break;
-        case "editVideo":
-          await navigate({
-            to: "/editeur-video",
-            search: videoEditorSearch(parent, f),
-          });
-          break;
         case "share":
           await doShare([f]);
           break;
@@ -609,13 +602,6 @@ function CategoryPage() {
         case "share":
           await doShare([f]);
           break;
-        case "editVideo":
-          setDialog({ kind: "none" });
-          await navigate({
-            to: "/editeur-video",
-            search: videoEditorSearchResuming(parent, f),
-          });
-          break;
         case "openWith":
           await openWithSystem(parent, f);
           break;
@@ -632,7 +618,7 @@ function CategoryPage() {
           break;
       }
     },
-    [doShare, navigate],
+    [doShare],
   );
 
   const viewerEntries = useMemo(() => sorted.filter((f) => canOpenInViewer(f)), [sorted]);

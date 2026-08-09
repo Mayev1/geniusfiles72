@@ -17,7 +17,6 @@ import { Route as OutilsRouteImport } from './routes/outils'
 import { Route as OrganisationRouteImport } from './routes/organisation'
 import { Route as NettoyeurRouteImport } from './routes/nettoyeur'
 import { Route as FichiersRecentsRouteImport } from './routes/fichiers-recents'
-import { Route as EditeurVideoRouteImport } from './routes/editeur-video'
 import { Route as EditeurAudioRouteImport } from './routes/editeur-audio'
 import { Route as DiagnosticClavierRouteImport } from './routes/diagnostic-clavier'
 import { Route as CorbeilleRouteImport } from './routes/corbeille'
@@ -68,11 +67,6 @@ const NettoyeurRoute = NettoyeurRouteImport.update({
 const FichiersRecentsRoute = FichiersRecentsRouteImport.update({
   id: '/fichiers-recents',
   path: '/fichiers-recents',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EditeurVideoRoute = EditeurVideoRouteImport.update({
-  id: '/editeur-video',
-  path: '/editeur-video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditeurAudioRoute = EditeurAudioRouteImport.update({
@@ -141,7 +135,6 @@ export interface FileRoutesByFullPath {
   '/corbeille': typeof CorbeilleRoute
   '/diagnostic-clavier': typeof DiagnosticClavierRoute
   '/editeur-audio': typeof EditeurAudioRoute
-  '/editeur-video': typeof EditeurVideoRoute
   '/fichiers-recents': typeof FichiersRecentsRoute
   '/nettoyeur': typeof NettoyeurRoute
   '/organisation': typeof OrganisationRoute
@@ -163,7 +156,6 @@ export interface FileRoutesByTo {
   '/corbeille': typeof CorbeilleRoute
   '/diagnostic-clavier': typeof DiagnosticClavierRoute
   '/editeur-audio': typeof EditeurAudioRoute
-  '/editeur-video': typeof EditeurVideoRoute
   '/fichiers-recents': typeof FichiersRecentsRoute
   '/nettoyeur': typeof NettoyeurRoute
   '/organisation': typeof OrganisationRoute
@@ -186,7 +178,6 @@ export interface FileRoutesById {
   '/corbeille': typeof CorbeilleRoute
   '/diagnostic-clavier': typeof DiagnosticClavierRoute
   '/editeur-audio': typeof EditeurAudioRoute
-  '/editeur-video': typeof EditeurVideoRoute
   '/fichiers-recents': typeof FichiersRecentsRoute
   '/nettoyeur': typeof NettoyeurRoute
   '/organisation': typeof OrganisationRoute
@@ -210,7 +201,6 @@ export interface FileRouteTypes {
     | '/corbeille'
     | '/diagnostic-clavier'
     | '/editeur-audio'
-    | '/editeur-video'
     | '/fichiers-recents'
     | '/nettoyeur'
     | '/organisation'
@@ -232,7 +222,6 @@ export interface FileRouteTypes {
     | '/corbeille'
     | '/diagnostic-clavier'
     | '/editeur-audio'
-    | '/editeur-video'
     | '/fichiers-recents'
     | '/nettoyeur'
     | '/organisation'
@@ -254,7 +243,6 @@ export interface FileRouteTypes {
     | '/corbeille'
     | '/diagnostic-clavier'
     | '/editeur-audio'
-    | '/editeur-video'
     | '/fichiers-recents'
     | '/nettoyeur'
     | '/organisation'
@@ -277,7 +265,6 @@ export interface RootRouteChildren {
   CorbeilleRoute: typeof CorbeilleRoute
   DiagnosticClavierRoute: typeof DiagnosticClavierRoute
   EditeurAudioRoute: typeof EditeurAudioRoute
-  EditeurVideoRoute: typeof EditeurVideoRoute
   FichiersRecentsRoute: typeof FichiersRecentsRoute
   NettoyeurRoute: typeof NettoyeurRoute
   OrganisationRoute: typeof OrganisationRoute
@@ -346,13 +333,6 @@ declare module '@tanstack/react-router' {
       path: '/fichiers-recents'
       fullPath: '/fichiers-recents'
       preLoaderRoute: typeof FichiersRecentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/editeur-video': {
-      id: '/editeur-video'
-      path: '/editeur-video'
-      fullPath: '/editeur-video'
-      preLoaderRoute: typeof EditeurVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editeur-audio': {
@@ -456,7 +436,6 @@ const rootRouteChildren: RootRouteChildren = {
   CorbeilleRoute: CorbeilleRoute,
   DiagnosticClavierRoute: DiagnosticClavierRoute,
   EditeurAudioRoute: EditeurAudioRoute,
-  EditeurVideoRoute: EditeurVideoRoute,
   FichiersRecentsRoute: FichiersRecentsRoute,
   NettoyeurRoute: NettoyeurRoute,
   OrganisationRoute: OrganisationRoute,

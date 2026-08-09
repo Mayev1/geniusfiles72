@@ -10,7 +10,6 @@ import {
   Share2,
   SquarePen,
   Trash2,
-  Clapperboard,
   Waves,
 } from "lucide-react";
 import type { FileEntry } from "@/lib/files/types";
@@ -31,8 +30,7 @@ export type EntryAction =
   | "extract"
   | "open"
   | "openWith"
-  | "editAudio"
-  | "editVideo";
+  | "editAudio";
 
 /**
  * Long-press / more-menu action sheet for a single entry.
@@ -57,7 +55,6 @@ export function EntryActionSheet({
   const showOpen = entry ? canOpenInViewer(entry) && canPreview(entry) : false;
   const showOpenWith = entry ? !entry.isDirectory : false;
   const showEditAudio = entry ? !entry.isDirectory && entry.kind === "audio" : false;
-  const showEditVideo = entry ? !entry.isDirectory && entry.kind === "video" : false;
   return (
     <BottomSheet open={open && !!entry} onClose={onClose}>
       {entry ? (
@@ -97,13 +94,6 @@ export function EntryActionSheet({
                 icon={Waves}
                 label="Modifier l'audio"
                 onClick={() => onAction("editAudio")}
-              />
-            ) : null}
-            {showEditVideo ? (
-              <ActionRow
-                icon={Clapperboard}
-                label="Modifier la vidéo"
-                onClick={() => onAction("editVideo")}
               />
             ) : null}
             {!entry.isDirectory ? (

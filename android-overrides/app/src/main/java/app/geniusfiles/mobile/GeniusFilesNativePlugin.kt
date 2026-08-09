@@ -68,7 +68,6 @@ import java.util.zip.ZipOutputStream
 private const val LEGACY_STORAGE = "legacyStorage"
 private const val EVENT_STORAGE_PERMISSION_CHANGED = "storagePermissionChanged"
 private const val EVENT_STORAGE_VOLUMES_CHANGED = "storageVolumesChanged"
-private const val EVENT_VIDEO_EXPORT_PROGRESS = "videoExportProgress"
 
 @CapacitorPlugin(
     name = "GeniusFilesNative",
@@ -80,10 +79,6 @@ private const val EVENT_VIDEO_EXPORT_PROGRESS = "videoExportProgress"
     ]
 )
 class GeniusFilesNativePlugin : Plugin() {
-
-    /** Exports vidéo en cours, par identifiant, pour l'annulation. */
-    private val videoExports =
-        java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicBoolean>()
 
     private val trashDir: File by lazy {
         File(context.filesDir, "trash").apply { mkdirs() }
@@ -451,7 +446,6 @@ class GeniusFilesNativePlugin : Plugin() {
     }
 
     // -------- Storage stats --------
-
 
     @PluginMethod
     fun getStorageStats(call: PluginCall) {
@@ -896,7 +890,6 @@ class GeniusFilesNativePlugin : Plugin() {
         return map.getMimeTypeFromExtension(ext) ?: "*/*"
     }
 
-
     // -------- Base64 I/O --------
 
     @PluginMethod
@@ -1122,216 +1115,6 @@ class GeniusFilesNativePlugin : Plugin() {
         }
     }
 
-    // -------- Export vidéo (trim, réencodage matériel) --------
-
-    /**
-     * Lance un export vidéo réel dans un thread dédié.
-     *
-     * La progression est diffusée via l'événement `videoExportProgress`
-     * ({ id, progress }) ; l'appel se résout seulement quand le fichier est
-     * complet et lisible. Le fichier source n'est jamais modifié : en cas
-     * d'échec ou d'annulation, la sortie partielle est supprimée.
-     */
-    @PluginMethod
-    fun videoExport(call: PluginCall) {
-        val input = call.getString("path") ?: return call.reject("BAD_ARGS")
-        val outputDir = call.getString("outputDir") ?: return call.reject("BAD_ARGS")
-        val outputName = call.getString("outputName") ?: return call.reject("BAD_ARGS")
-        val id = call.getString("id") ?: java.util.UUID.randomUUID().toString()
-        val exact = call.getBoolean("exact") ?: false
-        val overwrite = call.getBoolean("overwrite") ?: false
-
-        // Montage : liste ordonnée des portions conservées. Compatible avec
-        // l'appel simple startMs / endMs quand il n'y a qu'une découpe.
-        val segments = ArrayList<VideoTranscoder.Segment>()
-        val raw = try { call.getArray("segments") } catch (_: Throwable) { null }
-        if (raw != null) {
-            for (i in 0 until raw.length()) {
-                val o = raw.optJSONObject(i) ?: continue
-                val s = (o.optDouble("startMs", 0.0) * 1000).toLong().coerceAtLeast(0)
-                val e = (o.optDouble("endMs", 0.0) * 1000).toLong()
-                if (e > s) segments.add(VideoTranscoder.Segment(s, e))
-            }
-        }
-        if (segments.isEmpty()) {
-            val startUs = ((call.getDouble("startMs") ?: 0.0) * 1000).toLong().coerceAtLeast(0)
-            val endMs = call.getDouble("endMs") ?: 0.0
-            val endUs = if (endMs > 0) (endMs * 1000).toLong() else Long.MAX_VALUE
-            segments.add(VideoTranscoder.Segment(startUs, endUs))
-        }
-
-        val src = File(input)
-        if (!src.exists() || src.isDirectory) return call.reject("NOT_FOUND")
-
-        val dir = File(outputDir)
-        if (!dir.exists() && !dir.mkdirs()) return call.reject("DENIED")
-
-        var target = File(dir, outputName)
-        if (target.exists() && !overwrite) target = uniqueSibling(target)
-        // On n'écrase jamais l'original en place : on encode à côté puis on
-        // remplace seulement une fois le résultat complet.
-        val staging = File(context.cacheDir, "gf-video-export-$id.mp4")
-
-        val cancel = java.util.concurrent.atomic.AtomicBoolean(false)
-        videoExports[id] = cancel
-        val edit = readEdit(call)
-
-        Thread {
-            try {
-                var lastSent = -1
-                val written = VideoTranscoder.export(
-                    VideoTranscoder.Request(
-                        src.absolutePath, staging.absolutePath, segments, exact, edit
-                    ),
-                    cancel
-                ) { p ->
-                    val pct = (p * 100).toInt()
-                    if (pct != lastSent) {
-                        lastSent = pct
-                        val payload = JSObject()
-                        payload.put("id", id)
-                        payload.put("progress", p)
-                        notifyListeners(EVENT_VIDEO_EXPORT_PROGRESS, payload, true)
-                    }
-                }
-                if (cancel.get()) throw VideoTranscoder.CancelledException()
-                staging.copyTo(target, overwrite = true)
-                staging.delete()
-                val res = JSObject()
-                res.put("id", id)
-                res.put("path", target.absolutePath)
-                res.put("name", target.name)
-                res.put("size", target.length())
-                res.put("durationMs", written / 1000)
-                call.resolve(res)
-            } catch (c: VideoTranscoder.CancelledException) {
-                try { staging.delete() } catch (_: Throwable) {}
-                call.reject("CANCELLED", c.message)
-            } catch (t: Throwable) {
-                try { staging.delete() } catch (_: Throwable) {}
-                call.reject("IO_FAILED", t.message ?: t.javaClass.simpleName)
-            } finally {
-                videoExports.remove(id)
-            }
-        }.also { it.name = "gf-video-export" }.start()
-    }
-
-    /** Annulation coopérative : l'encodeur s'arrête à la prochaine image. */
-    @PluginMethod
-    fun videoExportCancel(call: PluginCall) {
-        val id = call.getString("id") ?: return call.reject("BAD_ARGS")
-        videoExports[id]?.set(true)
-        val res = JSObject()
-        res.put("cancelled", videoExports.containsKey(id))
-        call.resolve(res)
-    }
-
-    /**
-     * Transformations demandées par l'éditeur. Tout est optionnel : un appel
-     * sans réglage produit un export strictement identique à l'original.
-     */
-    private fun readEdit(call: PluginCall): VideoTranscoder.Edit {
-        val o = try { call.getObject("edit") } catch (_: Throwable) { null }
-            ?: return VideoTranscoder.Edit()
-        fun f(key: String, def: Double) = o.optDouble(key, def).toFloat()
-        return VideoTranscoder.Edit(
-            rotation = o.optInt("rotation", 0),
-            cropX = f("cropX", 0.0),
-            cropY = f("cropY", 0.0),
-            cropW = f("cropW", 1.0),
-            cropH = f("cropH", 1.0),
-            targetShortSide = o.optInt("targetShortSide", 0),
-            speed = o.optDouble("speed", 1.0).coerceIn(0.25, 4.0),
-            volume = o.optDouble("volume", 1.0).coerceIn(0.0, 2.0),
-            muted = o.optBoolean("muted", false),
-            brightness = f("brightness", 0.0),
-            contrast = f("contrast", 0.0),
-            exposure = f("exposure", 0.0),
-            saturation = f("saturation", 0.0),
-            temperature = f("temperature", 0.0),
-            tint = f("tint", 0.0),
-            sharpness = f("sharpness", 0.0),
-            layers = readLayers(o),
-            audioClips = readAudioClips(o),
-        )
-    }
-
-    /**
-     * Calques de l'étape 7. Les coordonnées sont normalisées dans l'image
-     * de sortie, exactement comme dans l'aperçu de l'application.
-     */
-    private fun readLayers(o: JSObject): List<OverlayLayer> {
-        val arr = try { o.optJSONArray("layers") } catch (_: Throwable) { null } ?: return emptyList()
-        val out = ArrayList<OverlayLayer>(arr.length())
-        for (i in 0 until arr.length()) {
-            val l = arr.optJSONObject(i) ?: continue
-            val kind = l.optString("kind", "")
-            if (kind.isEmpty()) continue
-            val strokes = ArrayList<OverlayStroke>()
-            l.optJSONArray("strokes")?.let { sa ->
-                for (j in 0 until sa.length()) {
-                    val so = sa.optJSONObject(j) ?: continue
-                    val pa = so.optJSONArray("points") ?: continue
-                    val pts = FloatArray(pa.length())
-                    for (k in 0 until pa.length()) pts[k] = pa.optDouble(k, 0.0).toFloat()
-                    strokes.add(
-                        OverlayStroke(
-                            points = pts,
-                            color = parseColor(so.optString("color", "#ff3b30"), Color.RED),
-                            width = so.optDouble("width", 0.012).toFloat(),
-                        )
-                    )
-                }
-            }
-            out.add(
-                OverlayLayer(
-                    kind = kind,
-                    startUs = (l.optDouble("startMs", 0.0) * 1000).toLong().coerceAtLeast(0),
-                    endUs = (l.optDouble("endMs", 0.0) * 1000).toLong(),
-                    x = l.optDouble("x", 0.0).toFloat(),
-                    y = l.optDouble("y", 0.0).toFloat(),
-                    w = l.optDouble("w", 1.0).toFloat(),
-                    h = l.optDouble("h", 1.0).toFloat(),
-                    rotation = l.optDouble("rotation", 0.0).toFloat(),
-                    opacity = l.optDouble("opacity", 1.0).toFloat(),
-                    text = l.optString("text", ""),
-                    textColor = parseColor(l.optString("color", "#ffffff"), Color.WHITE),
-                    background = parseColor(l.optString("background", ""), Color.TRANSPARENT),
-                    fontSize = l.optDouble("fontSize", 0.09).toFloat(),
-                    bold = l.optBoolean("bold", true),
-                    align = l.optString("align", "center"),
-                    path = l.optString("path", ""),
-                    strokes = strokes,
-                    mode = l.optString("mode", "blur"),
-                    strength = l.optDouble("strength", 0.6).toFloat(),
-                )
-            )
-        }
-        return out.filter { it.endUs > it.startUs }
-    }
-
-    /** Pistes audio importées, posées sur la timeline de sortie. */
-    private fun readAudioClips(o: JSObject): List<AudioTranscoder.Clip> {
-        val arr = try { o.optJSONArray("audioTracks") } catch (_: Throwable) { null }
-            ?: return emptyList()
-        val out = ArrayList<AudioTranscoder.Clip>(arr.length())
-        for (i in 0 until arr.length()) {
-            val c = arr.optJSONObject(i) ?: continue
-            val path = c.optString("path", "")
-            if (path.isEmpty() || !File(path).exists()) continue
-            out.add(
-                AudioTranscoder.Clip(
-                    path = path,
-                    startUs = (c.optDouble("startMs", 0.0) * 1000).toLong().coerceAtLeast(0),
-                    offsetUs = (c.optDouble("offsetMs", 0.0) * 1000).toLong().coerceAtLeast(0),
-                    durationUs = (c.optDouble("durationMs", 0.0) * 1000).toLong().coerceAtLeast(0),
-                    volume = c.optDouble("volume", 1.0).coerceIn(0.0, 4.0),
-                )
-            )
-        }
-        return out
-    }
-
     /** Accepte `#rrggbb`, `#rrggbbaa` (usage web) et `#aarrggbb`. */
     private fun parseColor(value: String, fallback: Int): Int {
         val v = value.trim()
@@ -1352,131 +1135,6 @@ class GeniusFilesNativePlugin : Plugin() {
         }
     }
 
-    /**
-     * Sélection d'un fichier local (image ou son) pour les calques.
-     *
-     * Le sélecteur système rend une URI ; on la recopie dans le cache de
-     * l'application pour disposer d'un vrai chemin lisible par le moteur
-     * d'export, qui travaille sur des fichiers.
-     */
-    @PluginMethod
-    fun pickLocalFile(call: PluginCall) {
-        val mime = call.getString("mime") ?: "*/*"
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = mime
-        }
-        startActivityForResult(call, intent, "pickLocalFileResult")
-    }
-
-    @ActivityCallback
-    private fun pickLocalFileResult(call: PluginCall?, result: ActivityResult) {
-        if (call == null) return
-        val uri = result.data?.data
-        if (result.resultCode != Activity.RESULT_OK || uri == null) {
-            call.reject("CANCELLED", "Sélection annulée")
-            return
-        }
-        try {
-            var name = "import"
-            context.contentResolver.query(uri, null, null, null, null)?.use { c ->
-                val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0 && c.moveToFirst()) name = c.getString(idx) ?: name
-            }
-            val dir = File(context.cacheDir, "gf-imports").apply { mkdirs() }
-            val target = File(dir, "${UUID.randomUUID()}-${name.replace('/', '_')}")
-            context.contentResolver.openInputStream(uri).use { input ->
-                if (input == null) throw IllegalStateException("IO_FAILED")
-                FileOutputStream(target).use { output -> input.copyTo(output) }
-            }
-            val res = JSObject()
-            res.put("path", target.absolutePath)
-            res.put("name", name)
-            res.put("size", target.length())
-            call.resolve(res)
-        } catch (t: Throwable) {
-            call.reject("IO_FAILED", t.message ?: t.javaClass.simpleName)
-        }
-    }
-
-    /**
-     * Extraction réelle de la bande son (M4A/AAC), montage, vitesse et
-     * volume compris. Rejette proprement si la vidéo n'a pas de son.
-     */
-    @PluginMethod
-    fun videoExtractAudio(call: PluginCall) {
-        val input = call.getString("path") ?: return call.reject("BAD_ARGS")
-        val outputDir = call.getString("outputDir") ?: return call.reject("BAD_ARGS")
-        val outputName = call.getString("outputName") ?: return call.reject("BAD_ARGS")
-        val id = call.getString("id") ?: java.util.UUID.randomUUID().toString()
-        val edit = readEdit(call)
-
-        val segments = ArrayList<VideoTranscoder.Segment>()
-        val raw = try { call.getArray("segments") } catch (_: Throwable) { null }
-        if (raw != null) {
-            for (i in 0 until raw.length()) {
-                val o = raw.optJSONObject(i) ?: continue
-                val s = (o.optDouble("startMs", 0.0) * 1000).toLong().coerceAtLeast(0)
-                val e = (o.optDouble("endMs", 0.0) * 1000).toLong()
-                if (e > s) segments.add(VideoTranscoder.Segment(s, e))
-            }
-        }
-        if (segments.isEmpty()) segments.add(VideoTranscoder.Segment(0, Long.MAX_VALUE))
-
-        val src = File(input)
-        if (!src.exists() || src.isDirectory) return call.reject("NOT_FOUND")
-        val dir = File(outputDir)
-        if (!dir.exists() && !dir.mkdirs()) return call.reject("DENIED")
-        var target = File(dir, outputName)
-        if (target.exists()) target = uniqueSibling(target)
-        val staging = File(context.cacheDir, "gf-audio-extract-$id.m4a")
-
-        val cancel = java.util.concurrent.atomic.AtomicBoolean(false)
-        videoExports[id] = cancel
-
-        Thread {
-            try {
-                var lastSent = -1
-                val ok = VideoTranscoder.extractAudio(
-                    src.absolutePath, staging.absolutePath, segments,
-                    edit.speed, if (edit.muted) 0.0 else edit.volume, cancel
-                ) { p ->
-                    val pct = (p * 100).toInt()
-                    if (pct != lastSent) {
-                        lastSent = pct
-                        val payload = JSObject()
-                        payload.put("id", id)
-                        payload.put("progress", p)
-                        notifyListeners(EVENT_VIDEO_EXPORT_PROGRESS, payload, true)
-                    }
-                }
-                if (cancel.get()) throw VideoTranscoder.CancelledException()
-                if (!ok) throw IllegalStateException("NO_AUDIO")
-                staging.copyTo(target, overwrite = true)
-                staging.delete()
-                val res = JSObject()
-                res.put("id", id)
-                res.put("path", target.absolutePath)
-                res.put("name", target.name)
-                res.put("size", target.length())
-                call.resolve(res)
-            } catch (c: VideoTranscoder.CancelledException) {
-                try { staging.delete() } catch (_: Throwable) {}
-                call.reject("CANCELLED", c.message)
-            } catch (t: Throwable) {
-                try { staging.delete() } catch (_: Throwable) {}
-                call.reject(
-                    if (t.message == "NO_AUDIO") "NO_AUDIO" else "IO_FAILED",
-                    t.message ?: t.javaClass.simpleName
-                )
-            } finally {
-                videoExports.remove(id)
-            }
-        }.also { it.name = "gf-audio-extract" }.start()
-    }
-
-
-
     private fun uniqueSibling(file: File): File {
         val name = file.name
         val dot = name.lastIndexOf('.')
@@ -1491,9 +1149,7 @@ class GeniusFilesNativePlugin : Plugin() {
         return candidate
     }
 
-
     // -------- Archives (ZIP) --------
-
 
     @PluginMethod
     fun archiveInfo(call: PluginCall) {

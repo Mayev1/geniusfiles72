@@ -210,26 +210,6 @@ type Plugin = {
     data: string;
     overwrite?: boolean;
   }) => Promise<{ path: string; size: number }>;
-  /** Export vidéo réel (étapes 5 et 6). */
-  videoExport?: (opts: Record<string, unknown>) => Promise<{
-    path: string;
-    name: string;
-    size: number;
-    durationMs: number;
-  }>;
-  /** Extraction de la bande son vers un M4A autonome. */
-  videoExtractAudio?: (opts: Record<string, unknown>) => Promise<{
-    path: string;
-    name: string;
-    size: number;
-  }>;
-  videoExportCancel?: (opts: { id: string }) => Promise<{ cancelled: boolean }>;
-  /** Sélection d'un fichier local (images, audio) via le sélecteur système. */
-  pickLocalFile?: (opts: { mime?: string }) => Promise<{
-    path: string;
-    name: string;
-    size: number;
-  }>;
 
   addListener?: {
     (
@@ -243,10 +223,6 @@ type Plugin = {
     (
       event: "storageVolumesChanged",
       handler: (payload: { volumes: NativeStorageVolume[] }) => void,
-    ): Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
-    (
-      event: "videoExportProgress",
-      handler: (payload: { id: string; progress: number }) => void,
     ): Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
   };
 };
