@@ -1024,7 +1024,6 @@ function FilesPage() {
 
   return (
     <AppShell>
-      
       {path ? (
         <FilesTopBar
           title={currentTitle}
@@ -1651,7 +1650,6 @@ function RootView({
           </button>
         }
       />
-
 
       <ResumeBanner />
 

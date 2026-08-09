@@ -297,10 +297,7 @@ function PdfToolsPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        title="Outils PDF"
-        subtitle="Modifier, créer, annoter et extraire vos PDF."
-      />
+      <PageHeader title="Outils PDF" subtitle="Modifier, créer, annoter et extraire vos PDF." />
 
       <ToolSection title="Modifier un PDF" tools={EDIT_TOOLS} onOpen={setTool} />
       <ToolSection title="Créer et convertir" tools={CREATE_TOOLS} onOpen={setTool} />

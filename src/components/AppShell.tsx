@@ -37,7 +37,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
   /* La conversation gère elle-même sa hauteur et son espace bas (nav + clavier). */
   const isChat = pathname.startsWith("/assistant");
 
-
   return (
     <div
       /* overflow-x-clip (et non hidden) : « hidden » crée un conteneur de
@@ -82,7 +81,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
     </div>
   );
 }
-
 
 function BottomNav({ pathname }: { pathname: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
