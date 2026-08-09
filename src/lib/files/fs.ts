@@ -179,8 +179,40 @@ export function listRoots(): StorageRoot[] {
   return roots;
 }
 
+/**
+ * Alias de chemins — permet d'exposer dans les composants « fichiers »
+ * (visualiseur, miniatures) un fichier qui ne vit pas sous une racine de
+ * stockage classique : par exemple un élément de la Corbeille, stocké
+ * dans l'espace privé de l'application sous un identifiant opaque.
+ *
+ * La clé est le PathRef complet ; la valeur, le chemin absolu réel.
+ */
+const pathAliases = new Map<string, string>();
+
+function aliasKey(path: PathRef): string {
+  return `${path.rootId}|${path.segments.join("/")}`;
+}
+
+export function registerPathAlias(path: PathRef, absolute: string): void {
+  pathAliases.set(aliasKey(path), absolute);
+}
+
+export function clearPathAliases(prefix: string): void {
+  for (const key of Array.from(pathAliases.keys())) {
+    if (key.startsWith(prefix)) pathAliases.delete(key);
+  }
+}
+
 /** Resolve a PathRef to an absolute filesystem path on device. */
 export function toAbsolutePath(path: PathRef): string {
+  const alias = pathAliases.get(aliasKey(path));
+  if (alias) return alias;
+  // Racine libre `abs:<chemin absolu>` (corbeille, dossiers hors racines).
+  if (typeof path.rootId === "string" && path.rootId.startsWith("abs:")) {
+    const base = path.rootId.slice(4).split("#")[0];
+    return [base, ...path.segments].join("/");
+  }
+
   // External volume rootIds are prefixed with "ext:" and looked up in the cache.
   if (typeof path.rootId === "string" && path.rootId.startsWith("ext:")) {
     const v = externalCache.find((e) => e.id === path.rootId);
