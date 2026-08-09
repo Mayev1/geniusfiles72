@@ -22,6 +22,7 @@ import {
 
 import type { AudioClip, TimeRange } from "@/lib/audio/types";
 import { computePeaksSync } from "@/lib/audio/peaks";
+import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "@/lib/audio/sync";
 import { durationOf } from "@/lib/audio/dsp";
 import type { ExtraTrack } from "@/lib/audio/tracks";
 import { tick } from "@/lib/photo/haptics";
@@ -144,6 +145,7 @@ export function TrackLanes({
   onClearSync,
   syncing,
   bpm,
+  onBpm,
   syncedCount,
 }: {
   mainClip: AudioClip;
@@ -179,8 +181,9 @@ export function TrackLanes({
   onSync: () => void;
   onClearSync: () => void;
   syncing: boolean;
-  /** BPM détecté par piste (`null` = indétectable, absent = en analyse). */
-  bpm: Record<string, number | null>;
+  /** BPM saisi manuellement par piste (aucune détection automatique). */
+  bpm: Record<string, number>;
+  onBpm: (id: LaneId, bpm: number) => void;
   syncedCount: number;
 }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -466,6 +469,10 @@ export function TrackLanes({
           ) : null}
         </div>
 
+        <p className="mb-1.5 text-[10px] leading-tight text-muted-foreground">
+          Saisissez le BPM de chaque piste : il n'est jamais détecté automatiquement.
+        </p>
+
         {rows.length < 2 ? (
           <p className="text-[10px] leading-tight text-muted-foreground">
             Ajoutez au moins deux pistes pour activer la synchronisation.
@@ -475,7 +482,7 @@ export function TrackLanes({
             <div className="space-y-1">
               {rows.map((r) => {
                 const isMaster = master === r.id;
-                const detected = bpm[r.id];
+                const value = bpm[r.id] ?? DEFAULT_BPM;
                 return (
                   <div key={`sync_${r.id}`} className="flex items-center gap-1.5">
                     <button
@@ -505,13 +512,23 @@ export function TrackLanes({
                       />
                       <span className="truncate">{r.name}</span>
                     </label>
-                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                      {detected === undefined
-                        ? "…"
-                        : detected === null
-                          ? "BPM ?"
-                          : `${Math.round(detected)} BPM`}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={MIN_BPM}
+                        max={MAX_BPM}
+                        step={0.5}
+                        value={String(value)}
+                        aria-label={`BPM de ${r.name}`}
+                        onChange={(e) => {
+                          const n = Number.parseFloat(e.target.value);
+                          if (Number.isFinite(n)) onBpm(r.id, n);
+                        }}
+                        className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-center font-mono text-[10px] text-foreground"
+                      />
+                      <span className="text-[10px] text-muted-foreground">BPM</span>
+                    </div>
                     {isMaster ? (
                       <span className="shrink-0 text-[10px] font-medium text-primary">Maître</span>
                     ) : null}
