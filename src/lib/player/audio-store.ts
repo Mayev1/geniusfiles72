@@ -349,19 +349,27 @@ class AudioStore {
   playQueue(parent: PathRef, entries: FileEntry[], index: number, parents?: (PathRef | null)[]) {
     try {
       const clamped = Math.max(0, Math.min(entries.length - 1, index));
-      const resolved: PathRef[] | null = parents
-        ? entries.map((_, i) => parents[i] ?? parent)
-        : null;
       const key = (p: PathRef | null | undefined) =>
         p ? `${p.rootId}:${p.segments.join("/")}` : "";
-      const sameQueue =
-        this.state.parent &&
+      /* Files identiques : identité de tableau d'abord (cas courant, coût
+         nul), puis comparaison profonde uniquement sur les listes courtes.
+         Au-delà de 2 000 pistes on échantillonne début/milieu/fin : aucun
+         parcours O(n) n'est déclenché par une simple ouverture de piste. */
+      const prev = this.state.queue;
+      const sameParent =
+        !!this.state.parent &&
         this.state.parent.rootId === parent.rootId &&
-        this.state.parent.segments.join("/") === parent.segments.join("/") &&
-        this.state.queue.length === entries.length &&
-        this.state.queue.every((e, i) => e.name === entries[i]?.name) &&
-        this.state.queue.every((_, i) => key(this.parentAt(i)) === key(resolved?.[i] ?? parent));
-      if (sameQueue) {
+        this.state.parent.segments.join("/") === parent.segments.join("/");
+      let sameList = prev === entries;
+      if (!sameList && sameParent && prev.length === entries.length && prev.length > 0) {
+        if (prev.length <= DEEP_COMPARE_MAX) {
+          sameList = prev.every((e, i) => e.name === entries[i]?.name);
+        } else {
+          const probes = [0, prev.length >> 1, prev.length - 1, clamped];
+          sameList = probes.every((i) => prev[i]?.name === entries[i]?.name);
+        }
+      }
+      if (sameParent && sameList) {
         if (clamped !== this.state.index) {
           this.setState({ index: clamped });
           this.loadCurrent(true);
@@ -370,10 +378,16 @@ class AudioStore {
         }
         return;
       }
+      // Nouvelle file : la table des dossiers n'est matérialisée qu'ici.
+      const resolved: PathRef[] | null = parents
+        ? entries.map((_, i) => parents[i] ?? parent)
+        : null;
+      void key;
       this.setState({ parent, parents: resolved, queue: entries, index: clamped });
       this.loadCurrent(true);
     } catch {
       /* never throw */
+
     }
   }
 
