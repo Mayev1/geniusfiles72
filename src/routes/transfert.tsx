@@ -34,7 +34,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/navigation/BackButton";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QrDisplay } from "@/components/transfer/QrDisplay";
@@ -1536,26 +1536,27 @@ function HistoryScreen() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="relative min-w-0">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un appareil…"
-            className="w-full rounded-full bg-secondary/60 py-2 pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground"
+            className="h-12 w-full rounded-2xl bg-surface-2 pl-11 pr-3 text-[14px] outline-none ring-1 ring-inset ring-border/60 placeholder:text-muted-foreground focus:ring-primary/50"
           />
         </div>
         {entries.length ? (
           <button
             onClick={() => setConfirmClear(true)}
-            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="gf-press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground"
             aria-label="Vider l'historique"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-[18px] w-[18px]" />
           </button>
         ) : null}
       </div>
+
 
       {filtered.length === 0 ? (
         <EmptyState
