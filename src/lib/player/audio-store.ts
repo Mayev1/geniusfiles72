@@ -349,8 +349,6 @@ class AudioStore {
   playQueue(parent: PathRef, entries: FileEntry[], index: number, parents?: (PathRef | null)[]) {
     try {
       const clamped = Math.max(0, Math.min(entries.length - 1, index));
-      const key = (p: PathRef | null | undefined) =>
-        p ? `${p.rootId}:${p.segments.join("/")}` : "";
       /* Files identiques : identité de tableau d'abord (cas courant, coût
          nul), puis comparaison profonde uniquement sur les listes courtes.
          Au-delà de 2 000 pistes on échantillonne début/milieu/fin : aucun
@@ -382,7 +380,6 @@ class AudioStore {
       const resolved: PathRef[] | null = parents
         ? entries.map((_, i) => parents[i] ?? parent)
         : null;
-      void key;
       this.setState({ parent, parents: resolved, queue: entries, index: clamped });
       this.loadCurrent(true);
     } catch {
