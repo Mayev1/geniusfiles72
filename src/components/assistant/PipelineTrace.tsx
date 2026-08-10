@@ -1,95 +1,78 @@
 /**
- * Pipeline de traitement de Genius AI.
+ * Pipeline de travail de Genius AI — une seule ligne, compacte et stable.
  *
- * Chaque étape reflète un état réel du tour en cours (envoi, réflexion du
- * modèle, exécution d'une commande par le moteur local, reprise du modèle,
- * rédaction). Aucune étape n'est jouée « à vide » : elles sont dérivées du
- * flux réel de la conversation et de la progression publiée par le moteur.
+ * Les étapes déjà terminées sont réduites à de petites pastilles ; seule
+ * l'étape en cours est écrite en toutes lettres, avec le détail réel publié
+ * par le moteur d'exécution. L'état vient d'un magasin persistant : la
+ * ligne ne disparaît jamais tant que le travail n'est pas terminé, et
+ * aucune étape ne revient en arrière.
  */
 import { Check, X } from "lucide-react";
+import type { TaskSnapshot } from "@/lib/ai/session";
 
-export type PipelineState = "pending" | "active" | "done" | "failed";
+export function PipelineTrace({ task }: { task: TaskSnapshot }) {
+  if (task.phase === "idle" || task.steps.length === 0) return null;
 
-export type PipelineStep = {
-  id: string;
-  label: string;
-  /** Détail réel (progression du moteur) affiché sous l'étape en cours. */
-  detail?: string;
-  state: PipelineState;
-};
-
-export function PipelineTrace({ steps }: { steps: PipelineStep[] }) {
-  if (steps.length === 0) return null;
+  const activeIndex = task.steps.findIndex((s) => s.state === "active" || s.state === "failed");
+  const current = activeIndex >= 0 ? task.steps[activeIndex] : task.steps[task.steps.length - 1];
+  const done = task.steps.slice(0, activeIndex >= 0 ? activeIndex : task.steps.length);
+  const remaining = activeIndex >= 0 ? task.steps.length - activeIndex - 1 : 0;
 
   return (
     <div
-      className="gf-chat-safe gf-pipeline rounded-[22px] border border-border/60 bg-surface/70 px-3.5 py-3"
+      className={`gf-chat-safe gf-pipeline-line ${task.phase === "closing" ? "gf-pipeline-out" : ""}`}
       aria-live="polite"
+      aria-label={`Genius AI : ${current.label}`}
     >
-      <ol className="space-y-0">
-        {steps.map((step, i) => (
-          <li key={step.id} className="relative flex gap-3 pb-2.5 last:pb-0">
-            {i < steps.length - 1 ? (
-              <span
-                aria-hidden
-                className={`absolute left-[9px] top-[20px] bottom-0 w-px transition-colors duration-300 ${
-                  step.state === "done" ? "bg-primary/45" : "bg-border"
-                }`}
-              />
-            ) : null}
-            <Marker state={step.state} />
-            <div className="min-w-0 flex-1 pt-px">
-              <p
-                className={`truncate text-[13px] leading-[18px] transition-colors duration-200 ${
-                  step.state === "pending"
-                    ? "text-muted-foreground/60"
-                    : step.state === "failed"
-                      ? "text-destructive"
-                      : step.state === "active"
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground"
-                }`}
-              >
-                {step.label}
-              </p>
-              {step.detail && step.state === "active" ? (
-                <p className="gf-pipeline-detail mt-0.5 truncate text-[12px] leading-[16px] text-muted-foreground">
-                  {step.detail}
-                </p>
-              ) : null}
-            </div>
-          </li>
+      <div className="flex items-center gap-2 rounded-full border border-border/60 bg-surface/80 py-1.5 pl-2 pr-3.5">
+        {done.map((s) => (
+          <span
+            key={s.id}
+            title={s.label}
+            className="gf-pipeline-pop flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full bg-primary/85 text-primary-foreground"
+          >
+            <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
+          </span>
         ))}
-      </ol>
+
+        <Marker state={current.state} />
+
+        <span key={current.id} className="gf-pipeline-swap min-w-0 flex-1">
+          <span className="block truncate text-[12.5px] font-medium leading-[16px] text-foreground">
+            {current.detail ?? current.label}
+          </span>
+        </span>
+
+        {remaining > 0 ? (
+          <span aria-hidden className="flex shrink-0 items-center gap-1">
+            {Array.from({ length: remaining }).map((_, i) => (
+              <span key={i} className="h-[5px] w-[5px] rounded-full bg-muted-foreground/30" />
+            ))}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function Marker({ state }: { state: PipelineState }) {
-  if (state === "done") {
-    return (
-      <span className="gf-pipeline-pop z-10 mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <Check className="h-3 w-3" strokeWidth={3} />
-      </span>
-    );
-  }
+function Marker({ state }: { state: "pending" | "active" | "done" | "failed" }) {
   if (state === "failed") {
     return (
-      <span className="gf-pipeline-pop z-10 mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground">
-        <X className="h-3 w-3" strokeWidth={3} />
+      <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground">
+        <X className="h-2.5 w-2.5" strokeWidth={3.5} />
       </span>
     );
   }
-  if (state === "active") {
+  if (state === "done") {
     return (
-      <span className="z-10 mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary/15">
-        <span className="gf-pipeline-spin h-[10px] w-[10px] rounded-full border-2 border-primary/30 border-t-primary" />
+      <span className="gf-pipeline-pop flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
       </span>
     );
   }
   return (
-    <span className="z-10 mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-surface-2">
-      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+    <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-primary/15">
+      <span className="gf-pipeline-spin h-[10px] w-[10px] rounded-full border-2 border-primary/30 border-t-primary" />
     </span>
   );
 }
