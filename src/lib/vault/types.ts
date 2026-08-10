@@ -16,7 +16,7 @@
  */
 import type { FileKind, PathRef, StorageRootId } from "@/lib/files/types";
 
-export type VaultAuthMethod = "pin" | "password";
+export type VaultAuthMethod = "pin" | "password" | "pattern";
 
 export type VaultCredential = {
   method: VaultAuthMethod;
