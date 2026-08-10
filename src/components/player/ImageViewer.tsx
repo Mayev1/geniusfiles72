@@ -56,10 +56,6 @@ function preload(url: string) {
   img.src = url;
 }
 
-function isReady(url: string) {
-  return decoded.get(url) === true;
-}
-
 export function ImageViewer({
   parent,
   entries,
