@@ -4,7 +4,6 @@ import type { UIMessage } from "ai";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -39,6 +38,7 @@ import {
   setStorageProvider,
   startNewConversation,
   stopTask,
+  subscribeChat,
   subscribeConversationId,
   subscribeTask,
 } from "@/lib/ai/session";
