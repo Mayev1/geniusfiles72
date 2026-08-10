@@ -358,9 +358,9 @@ export function UniversalViewer({
 
   const src = sourceUrlOf(parent, entry);
   const key = entryKey(parent, entry);
-  const previewableSiblings = entries.filter((e) => viewerKindOf(e) === kind);
-  const relIndex = previewableSiblings.indexOf(entry);
-  const previewCount = previewableSiblings.length;
+  const relIndex = relIndexOf(entry);
+  const previewCount = siblings.length;
+
 
   const fire = (a: ViewerAction) => {
     setMenuOpen(false);
