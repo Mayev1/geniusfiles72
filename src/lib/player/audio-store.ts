@@ -49,6 +49,11 @@ export type AudioState = {
 };
 
 const STORAGE_KEY = "gf.player.state.v1";
+/** Nombre maximal de pistes persistées autour de la position courante. */
+const SAVE_WINDOW = 400;
+/** Au-delà, la comparaison de file se fait par échantillon (O(1)). */
+const DEEP_COMPARE_MAX = 2000;
+
 
 type Listener = () => void;
 
