@@ -67,6 +67,7 @@ class MainActivity : BridgeActivity() {
 
         applySystemBars()
         disableAlgorithmicDarkening()
+        disableWebViewOverScroll()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -166,6 +167,25 @@ class MainActivity : BridgeActivity() {
             webView.setBackgroundColor(if (isLightTheme()) 0xFFF5F6F8.toInt() else 0xFF191919.toInt())
         } catch (_: Throwable) {
             /* réglage non supporté */
+        }
+    }
+
+    /**
+     * Supprime l'étirement natif de la WebView au dépassement du scroll.
+     *
+     * Chromium étire (ou fait rebondir) l'intégralité de la surface rendue,
+     * en-tête collant compris : aucun CSS ne peut l'en empêcher. Coupé ici,
+     * seul l'effet de tirage géré par l'application reste visible, et il
+     * ne s'applique qu'au contenu situé sous l'en-tête.
+     */
+    private fun disableWebViewOverScroll() {
+        try {
+            val webView = bridge?.webView ?: return
+            webView.overScrollMode = android.view.View.OVER_SCROLL_NEVER
+            webView.isVerticalScrollBarEnabled = false
+            webView.isHorizontalScrollBarEnabled = false
+        } catch (_: Throwable) {
+            /* WebView indisponible */
         }
     }
 

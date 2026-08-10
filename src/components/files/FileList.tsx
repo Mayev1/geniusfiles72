@@ -35,7 +35,9 @@ const LONG_PRESS_MS = 380;
 function usePressBinder(entry: FileEntry, onLongPress: (e: FileEntry) => void) {
   const timer = useRef<number | null>(null);
   const fired = useRef(false);
+  const origin = useRef<{ x: number; y: number } | null>(null);
   const clear = () => {
+    origin.current = null;
     if (timer.current != null) {
       window.clearTimeout(timer.current);
       timer.current = null;
@@ -44,13 +46,21 @@ function usePressBinder(entry: FileEntry, onLongPress: (e: FileEntry) => void) {
   return {
     fired,
     handlers: {
-      onPointerDown: () => {
+      onPointerDown: (e: React.PointerEvent) => {
         fired.current = false;
         clear();
+        origin.current = { x: e.clientX, y: e.clientY };
         timer.current = window.setTimeout(() => {
           fired.current = true;
           onLongPress(entry);
         }, LONG_PRESS_MS);
+      },
+      /* Dès que le doigt glisse (défilement ou tirer pour actualiser),
+         l'appui long est abandonné : plus aucune sélection accidentelle. */
+      onPointerMove: (e: React.PointerEvent) => {
+        const start = origin.current;
+        if (!start || timer.current == null) return;
+        if (Math.abs(e.clientX - start.x) > 8 || Math.abs(e.clientY - start.y) > 8) clear();
       },
       onPointerUp: clear,
       onPointerLeave: clear,
