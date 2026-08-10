@@ -119,6 +119,52 @@ export function UniversalViewer({
      affichés dans le menu du lecteur : aucune barre flottante en bas. */
   const [tools, setTools] = useState<ReaderTool[]>([]);
 
+  /* ─────────────────────────────────────────────────────────────
+     Fratrie du même type — calculée UNE SEULE FOIS par liste/type.
+
+     Sur une catégorie globale (100 000+ fichiers), refaire `filter` et
+     `indexOf` à chaque rendu bloquait le thread principal : chaque appui
+     sur lecture/pause, chaque seconde de lecture et chaque ouverture de
+     playlist relançaient des parcours O(n). Le tableau et les tables de
+     correspondance rel↔abs sont désormais mémoïsés.
+     ───────────────────────────────────────────────────────────── */
+  const { siblings, relOf, absOf } = useMemo(() => {
+    const list: FileEntry[] = [];
+    const rel = new Map<FileEntry, number>();
+    const abs: number[] = [];
+    if (kind !== "none") {
+      for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        if (viewerKindOf(e) !== kind) continue;
+        rel.set(e, list.length);
+        abs.push(i);
+        list.push(e);
+      }
+    }
+    return { siblings: list, relOf: rel, absOf: abs };
+  }, [entries, kind]);
+
+  const relIndexOf = useCallback(
+    (e: FileEntry | null) => (e ? (relOf.get(e) ?? -1) : -1),
+    [relOf],
+  );
+  const toAbsIndex = useCallback((rel: number) => absOf[rel] ?? 0, [absOf]);
+
+  /* `parentOf` est souvent une lambda recréée à chaque rendu : on la lit via
+     une ref pour ne jamais recartographier 100 000 entrées inutilement. */
+  const parentOfRef = useRef(parentOf);
+  useEffect(() => {
+    parentOfRef.current = parentOf;
+  });
+  const siblingParents = useMemo(
+    () =>
+      kind === "audio" && parentOfRef.current
+        ? siblings.map((e) => parentOfRef.current?.(e) ?? null)
+        : undefined,
+    [siblings, kind],
+  );
+
+
   // Les lecteurs de documents (PDF, Office, texte, ebook, fallback) gardent
   // une chrome permanente et opaque ; les médias immersifs (image / vidéo)
   // ont leurs propres lecteurs dédiés avec auto-masquage.
