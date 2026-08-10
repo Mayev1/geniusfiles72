@@ -1011,7 +1011,7 @@ export function VideoPlayer({
         }}
         variant="video"
         title="Vidéos"
-        pathFor={(e) => absolutePathOf(parent, e)}
+        pathFor={(e) => absolutePathOf(parentOfEntry(e), e)}
       />
     </div>
   );
