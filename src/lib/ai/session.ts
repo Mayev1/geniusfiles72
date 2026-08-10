@@ -58,10 +58,13 @@ const IDLE: TaskSnapshot = { phase: "idle", steps: [], failed: false };
 
 let phase: TaskSnapshot["phase"] = "idle";
 let currentId: StepId = "understand";
-let usedEngine = false;
 let failed = false;
 let detail: string | null = null;
 let snapshot: TaskSnapshot = IDLE;
+/** Commandes moteur en cours : tant qu'il en reste, la tâche n'est pas finie. */
+let pendingTools = 0;
+/** Horodatage du dernier signe de vie du modèle (anti-clôture prématurée). */
+let lastActivity = 0;
 
 const taskListeners = new Set<() => void>();
 let closeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -73,9 +76,8 @@ function rank(id: StepId): number {
 
 function build(): TaskSnapshot {
   if (phase === "idle") return IDLE;
-  const visible = ORDER.filter((id) => usedEngine || (id !== "execute" && id !== "verify"));
   const cur = rank(currentId);
-  const steps: TaskStep[] = visible.map((id) => {
+  const steps: TaskStep[] = ORDER.map((id) => {
     const r = rank(id);
     let state: PipelineState;
     if (phase === "closing") state = failed && r === cur ? "failed" : "done";
@@ -107,7 +109,7 @@ export function getServerTask(): TaskSnapshot {
 
 /** Avance la pipeline — jamais en arrière. */
 function advance(id: StepId) {
-  if (id === "execute" || id === "verify") usedEngine = true;
+  lastActivity = Date.now();
   if (rank(id) <= rank(currentId)) return;
   currentId = id;
   detail = null;
@@ -121,15 +123,16 @@ function startTask() {
   }
   phase = "running";
   currentId = "understand";
-  usedEngine = false;
   failed = false;
   detail = null;
+  pendingTools = 0;
+  lastActivity = Date.now();
   emit();
   // La compréhension est immédiate : on bascule tout de suite sur l'analyse
   // dès que la requête part réellement vers le modèle.
   setTimeout(() => {
     if (phase === "running") advance("plan");
-  }, 220);
+  }, 160);
   startPolling();
 }
 
@@ -139,31 +142,35 @@ function endTask(withFailure = false) {
   if (!withFailure) currentId = "respond";
   phase = "closing";
   detail = null;
+  pendingTools = 0;
   emit();
   stopPolling();
+  persist();
   if (closeTimer) clearTimeout(closeTimer);
   closeTimer = setTimeout(() => {
     phase = "idle";
     emit();
-  }, 520);
+  }, 460);
 }
 
 /**
  * Rafraîchissement léger de l'état réel pendant qu'une tâche tourne :
- * étape publiée par le moteur, et apparition du texte de réponse. Cette
- * boucle vit hors de React, donc elle continue si l'utilisateur quitte
- * l'écran.
+ * étape publiée par le moteur, apparition du texte de réponse et
+ * sauvegarde continue. Cette boucle vit hors de React, donc elle continue
+ * si l'utilisateur quitte l'écran.
  */
 function startPolling() {
   if (pollTimer) return;
   pollTimer = setInterval(() => {
     if (phase !== "running") return;
     const stage = getEngineStage();
-    if (stage && stage !== detail && currentId === "execute") {
+    if (stage && stage !== detail && (currentId === "execute" || currentId === "verify")) {
       detail = stage;
+      lastActivity = Date.now();
       emit();
     }
-    const last = chat?.messages[chat.messages.length - 1];
+    const messages = chat?.messages ?? [];
+    const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
       const parts = Array.isArray(last.parts) ? last.parts : [];
       const hasText = parts.some(
@@ -173,7 +180,21 @@ function startPolling() {
       );
       if (hasText) advance("respond");
     }
-  }, 180);
+    // Sauvegarde continue : quitter l'application pendant le travail ne
+    // fait plus disparaître le message ni la réponse partielle.
+    persist();
+
+    // Filet de sécurité : si plus rien ne bouge et qu'aucune commande
+    // moteur n'est en cours, on clôt proprement au lieu de tourner à vide.
+    const status = chat?.status;
+    if (
+      pendingTools === 0 &&
+      (status === "ready" || status === "error") &&
+      Date.now() - lastActivity > 1200
+    ) {
+      endTask(status === "error");
+    }
+  }, 140);
 }
 
 function stopPolling() {
@@ -181,6 +202,7 @@ function stopPolling() {
   clearInterval(pollTimer);
   pollTimer = null;
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Conversation persistante                                            */
