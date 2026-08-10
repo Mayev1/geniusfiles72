@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { isAndroidNative, nativePlugin } from "@/lib/native/geniusfiles-native";
+import { subscribeFsPatch } from "@/lib/index/patches";
 import { listDirectory, toAbsolutePath } from "./fs";
 import { pathKeyOf, type SelectionItem } from "./selection-store";
 import type { FileEntry, PathRef } from "./types";
@@ -24,6 +25,13 @@ function dirKey(parent: PathRef, name: string): string {
 /** Invalide les tailles mémorisées (après une mutation). */
 export function invalidateSizes(): void {
   cache.clear();
+}
+
+// Toute mutation du stockage périme les tailles de dossiers mémorisées :
+// le cache ne peut jamais devenir une source de vérité obsolète.
+if (typeof window !== "undefined") {
+  subscribeFsPatch(() => cache.clear());
+  window.addEventListener("gf:storage-changed", () => cache.clear());
 }
 
 async function walkSize(path: PathRef, depth = 0): Promise<number> {
@@ -93,7 +101,26 @@ export function useSelectionSize(items: ReadonlyMap<string, SelectionItem>): Sel
     let base = 0;
     const dirs: SelectionItem[] = [];
 
+    // Anti-double-comptage : un élément contenu dans un dossier déjà
+    // sélectionné n'est pas compté une seconde fois.
+    const selectedDirs: string[] = [];
     for (const item of items.values()) {
+      if (item.entry.isDirectory) {
+        selectedDirs.push(`${pathKeyOf(item.parent)}/${item.entry.name}`);
+      }
+    }
+    const isCovered = (item: SelectionItem) => {
+      const parent = pathKeyOf(item.parent);
+      const self = `${parent}/${item.entry.name}`;
+      for (const dir of selectedDirs) {
+        if (dir === self) continue;
+        if (parent === dir || parent.startsWith(`${dir}/`)) return true;
+      }
+      return false;
+    };
+
+    for (const item of items.values()) {
+      if (isCovered(item)) continue;
       if (!item.entry.isDirectory) {
         base += item.entry.size ?? 0;
         continue;

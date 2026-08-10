@@ -20,7 +20,13 @@
  * - Plusieurs abonnés (accueil, analyse, nettoyeur) partagent la même
  *   analyse : elle n'est exécutée qu'une fois.
  */
-import { scanCategories, type CategoryKey, type ScanResult } from "@/lib/files/analyzer";
+import {
+  emptyKindStats,
+  scanCategories,
+  type CategoryKey,
+  type ScanResult,
+} from "@/lib/files/analyzer";
+import { categoryOfName as homeCategoryOfName } from "@/lib/files/category-rules";
 import { kindOf } from "@/lib/files/format";
 import type { FileKind, PathRef } from "@/lib/files/types";
 import { idbGetCached, idbSetCached } from "./persist";
@@ -129,6 +135,13 @@ async function hydrate(scope: Scope): Promise<void> {
   scope.loading = (async () => {
     const raw = await idbGetCached<Snapshot>(idbKey(scope.key));
     if (raw && raw.version === 1 && raw.result && !scope.snapshot) {
+      if (!raw.result.kinds) {
+        // Instantané écrit par une version antérieure : les totaux par
+        // catégorie sont inconnus → on le considère périmé plutôt que
+        // d'afficher des valeurs fausses.
+        raw.result.kinds = emptyKindStats();
+        raw.builtAt = 0;
+      }
       scope.snapshot = raw;
       emit(scope);
     }
@@ -151,6 +164,29 @@ function adjust(scope: Scope, cat: CategoryKey, deltaCount: number, deltaBytes: 
   return true;
 }
 
+/** Ajuste les totaux d'une catégorie d'accueil (Images/Vidéos/…). */
+function adjustKind(scope: Scope, name: string, deltaCount: number, deltaBytes: number) {
+  const snap = scope.snapshot;
+  if (!snap) return;
+  const kind = homeCategoryOfName(name);
+  if (!kind) return;
+  if (!snap.result.kinds) snap.result.kinds = emptyKindStats();
+  const k = snap.result.kinds[kind];
+  k.count = Math.max(0, k.count + deltaCount);
+  k.bytes = Math.max(0, k.bytes + deltaBytes);
+}
+
+/**
+ * Une mutation dont l'impact exact est inconnu (dossier supprimé ou
+ * déplacé, taille non fournie) rend l'instantané périmé : une nouvelle
+ * analyse démarre en tâche de fond plutôt que d'afficher un total faux.
+ */
+function markStale(scope: Scope) {
+  if (scope.snapshot) scope.snapshot.builtAt = 0;
+  scope.lastStartedAt = 0;
+  startScan(scope);
+}
+
 function categoryOf(name: string): CategoryKey {
   return KIND_TO_CATEGORY[kindOf(name, false)] ?? "other";
 }
@@ -159,21 +195,42 @@ function applyPatch(patch: FsPatchOp) {
   for (const scope of scopes.values()) {
     if (!scope.snapshot) continue;
     let changed = false;
-    if (patch.op === "create" && !patch.isDirectory) {
-      changed = adjust(scope, categoryOf(patch.name), 1, patch.size ?? 0);
-    } else if (patch.op === "delete" && !patch.isDirectory) {
-      changed = adjust(scope, categoryOf(patch.name), -1, 0);
+    if (patch.op === "create") {
+      if (patch.isDirectory) {
+        // Un dossier créé est vide : rien à ajouter. Une copie de dossier
+        // émet un patch par fichier.
+        continue;
+      }
+      const size = patch.size ?? 0;
+      changed = adjust(scope, categoryOf(patch.name), 1, size);
+      adjustKind(scope, patch.name, 1, size);
+    } else if (patch.op === "delete") {
+      if (patch.isDirectory || patch.size == null) {
+        markStale(scope);
+        continue;
+      }
+      changed = adjust(scope, categoryOf(patch.name), -1, -patch.size);
+      adjustKind(scope, patch.name, -1, -patch.size);
     } else if (patch.op === "rename" && !patch.isDirectory) {
       const from = categoryOf(patch.oldName);
       const to = categoryOf(patch.newName);
-      if (from !== to) {
-        adjust(scope, from, -1, 0);
-        adjust(scope, to, 1, 0);
-        changed = true;
+      const fromKind = homeCategoryOfName(patch.oldName);
+      const toKind = homeCategoryOfName(patch.newName);
+      if (from !== to || fromKind !== toKind) {
+        // La taille ne change pas, seulement la catégorie : on ne peut pas
+        // la déplacer sans la connaître → réanalyse ciblée en tâche de fond.
+        markStale(scope);
+        continue;
+      }
+    } else if (patch.op === "move") {
+      // Déplacement à l'intérieur des racines suivies : ni le nombre de
+      // fichiers ni les octets ne changent. Un déplacement changeant de
+      // volume peut sortir du périmètre → réanalyse en tâche de fond.
+      if (patch.fromRootId !== patch.toRootId) {
+        markStale(scope);
+        continue;
       }
     }
-    // Un déplacement à l'intérieur des racines suivies ne modifie ni le
-    // nombre de fichiers ni les octets : rien à recalculer.
     if (changed) {
       emit(scope);
       persist(scope);
@@ -185,6 +242,17 @@ function bindPatches() {
   if (patchBound || typeof window === "undefined") return;
   patchBound = true;
   subscribeFsPatch(applyPatch);
+
+  // Signal grossier (corbeille, opération de masse, modification par une
+  // autre application) : l'impact exact est inconnu → réanalyse différée
+  // et throttlée, jamais d'affichage figé sur une valeur périmée.
+  let lastCoarse = 0;
+  window.addEventListener("gf:storage-changed", () => {
+    const now = Date.now();
+    if (now - lastCoarse < MIN_GAP_MS) return;
+    lastCoarse = now;
+    for (const scope of scopes.values()) markStale(scope);
+  });
 }
 
 /* ---------- API publique ---------- */

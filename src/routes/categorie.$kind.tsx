@@ -34,6 +34,9 @@ import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
 import { sortEntries } from "@/lib/files/sort";
+import { formatSize } from "@/lib/files/format";
+import { useSelectionSize } from "@/lib/files/selection-size";
+import { selectionKey, type SelectionItem } from "@/lib/files/selection-store";
 import { loadFoldersFirst, loadSort, loadView, saveSort, saveView } from "@/lib/files/preferences";
 import type { FileEntry, PathRef, SortKey, SortOrder, ViewMode } from "@/lib/files/types";
 import {
@@ -408,6 +411,25 @@ function CategoryPage() {
     [sorted, selected],
   );
 
+  /* Taille réelle de la sélection — exactement le même mécanisme que le
+     gestionnaire de fichiers (tailles connues pour les fichiers, mesure
+     récursive mémorisée pour les dossiers, sans double comptage). */
+  const selectionItems = useMemo(() => {
+    const m = new Map<string, SelectionItem>();
+    for (const f of selectedFiles) {
+      const parent = parentOf(f);
+      const key = selectionKey(parent, f.name);
+      m.set(key, { key, parent, entry: f });
+    }
+    return m;
+  }, [selectedFiles]);
+  const selectionSize = useSelectionSize(selectionItems);
+  const selectionSizeLabel = selectionSize.pending
+    ? selectionSize.bytes > 0
+      ? `${formatSize(selectionSize.bytes)} • calcul…`
+      : "Calcul…"
+    : formatSize(selectionSize.bytes);
+
   const toggleSelect = useCallback((entry: FileEntry) => {
     const f = entry as CategoryFile;
     setSelected((prev) => {
@@ -687,6 +709,7 @@ function CategoryPage() {
           selectionMode
             ? {
                 count: selectedFiles.length,
+                sizeLabel: selectionSizeLabel,
                 onClear: clearSelection,
                 onSelectAll: selectAll,
                 onSelectRange: selectedFiles.length >= 1 ? selectRange : undefined,

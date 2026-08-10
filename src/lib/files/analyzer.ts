@@ -10,6 +10,8 @@
  * preview (curated mock tree) via the shared `listDirectory` bridge.
  */
 import { listDirectory } from "./fs";
+import { categoryOfName, shouldTraverseCategoryDir, type CategoryKind } from "./category-rules";
+
 import type { FileKind, PathRef } from "./types";
 
 export type CategoryKey =
@@ -42,38 +44,7 @@ const KIND_TO_CATEGORY: Partial<Record<FileKind, CategoryKey>> = {
   other: "other",
 };
 
-/**
- * Skip strictly technical directories only. We never exclude a
- * user-visible folder based on assumptions about its content.
- * Under /Android we still traverse `Android/media` (public messaging
- * media lives there); only `Android/data` and `Android/obb` are skipped
- * because Android itself blocks reads.
- */
-const SYSTEM_CACHE_NAMES = new Set([
-  "cache",
-  "caches",
-  ".cache",
-  "code_cache",
-  "thumbnails",
-  ".thumbnails",
-  "thumbs",
-  ".thumbs",
-  ".trash",
-  ".trashed",
-  ".Trash",
-  ".Trash-1000",
-  "app_webview",
-  "shared_prefs",
-]);
-
-function shouldTraverseDir(name: string, parentSegments: string[]): boolean {
-  const lower = name.toLowerCase();
-  if (SYSTEM_CACHE_NAMES.has(name) || SYSTEM_CACHE_NAMES.has(lower)) return false;
-  const parentLower = parentSegments.map((s) => s.toLowerCase());
-  const parentIsAndroid = parentLower[parentLower.length - 1] === "android";
-  if (parentIsAndroid && (lower === "data" || lower === "obb")) return false;
-  return true;
-}
+const shouldTraverseDir = shouldTraverseCategoryDir;
 
 export type FolderBreakdown = {
   path: string;
@@ -82,8 +53,17 @@ export type FolderBreakdown = {
   count: number;
 };
 
+/** Totaux par catégorie d'accueil (mêmes règles que les écrans catégorie). */
+export type KindStats = { bytes: number; count: number };
+
 export type ScanResult = {
   categories: Record<CategoryKey, CategoryStats>;
+  /**
+   * Tailles réelles par catégorie de l'accueil. Calculées avec
+   * `category-rules` : ce que l'accueil affiche est exactement ce que
+   * l'écran de la catégorie contient.
+   */
+  kinds: Record<Exclude<CategoryKind, "downloads">, KindStats>;
   totalFiles: number;
   totalBytes: number;
   scannedFolders: number;
@@ -92,6 +72,15 @@ export type ScanResult = {
   done: boolean;
   cancelled: boolean;
 };
+
+export function emptyKindStats(): ScanResult["kinds"] {
+  return {
+    images: { bytes: 0, count: 0 },
+    videos: { bytes: 0, count: 0 },
+    audio: { bytes: 0, count: 0 },
+    documents: { bytes: 0, count: 0 },
+  };
+}
 
 function emptyResult(done: boolean): ScanResult {
   return {
@@ -105,6 +94,7 @@ function emptyResult(done: boolean): ScanResult {
       apk: { key: "apk", bytes: 0, count: 0 },
       other: { key: "other", bytes: 0, count: 0 },
     },
+    kinds: emptyKindStats(),
     totalFiles: 0,
     totalBytes: 0,
     scannedFolders: 0,
@@ -159,6 +149,12 @@ export function scanCategories(
             result.categories[cat].bytes += size;
             result.categories[cat].count += 1;
             result.totalBytes += size;
+            const homeKind = categoryOfName(e.name);
+            if (homeKind) {
+              result.kinds[homeKind].bytes += size;
+              result.kinds[homeKind].count += 1;
+            }
+
             const bucketSeg = p.segments[0] ?? "(racine)";
             const bucketKey = `${p.rootId}:${bucketSeg}`;
             let bucket = folderAgg.get(bucketKey);
@@ -180,7 +176,12 @@ export function scanCategories(
       step += 1;
       if (step % 4 === 0) {
         result.topFolders = [...folderAgg.values()].sort((a, b) => b.bytes - a.bytes).slice(0, 8);
-        onProgress({ ...result, categories: { ...result.categories } });
+        onProgress({
+          ...result,
+          categories: { ...result.categories },
+          kinds: { ...result.kinds },
+        });
+
         await new Promise((r) => setTimeout(r, 0));
       }
     }

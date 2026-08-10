@@ -19,128 +19,29 @@
  */
 import { getExternalVolumes, listDirectory, subscribeRoots } from "./fs";
 import { extOf } from "./format";
+import {
+  CATEGORY_EXT,
+  CATEGORY_LABEL,
+  matchesCategory,
+  shouldTraverseCategoryDir,
+  type CategoryKind,
+} from "./category-rules";
 import type { FileEntry, PathRef, StorageRootId } from "./types";
 import { idbGetCached, idbSetCached } from "@/lib/index/persist";
 import { subscribeFsPatch, type FsPatchOp } from "@/lib/index/patches";
 
-export type CategoryKind = "images" | "videos" | "audio" | "documents" | "downloads";
+export type { CategoryKind };
 
 export type CategoryFile = FileEntry & {
   rootId: StorageRootId;
   folderSegments: string[];
 };
 
-const SKIP_NAMES = new Set([
-  "Android",
-  ".thumbnails",
-  ".trashed",
-  ".Trash",
-  ".Trash-1000",
-  "cache",
-  "Cache",
-  "node_modules",
-]);
+/* Extensions, libellés et dossiers ignorés : voir `category-rules.ts`.
+   Une seule définition partagée avec l'analyseur de l'accueil. */
+const EXT = CATEGORY_EXT;
 
-const EXT: Record<Exclude<CategoryKind, "downloads">, Set<string>> = {
-  images: new Set([
-    "jpg",
-    "jpeg",
-    "png",
-    "webp",
-    "gif",
-    "bmp",
-    "heic",
-    "heif",
-    "tif",
-    "tiff",
-    "svg",
-    "avif",
-    "ico",
-    "jfif",
-  ]),
-  videos: new Set([
-    "mp4",
-    "mkv",
-    "avi",
-    "mov",
-    "webm",
-    "3gp",
-    "flv",
-    "mpeg",
-    "mpg",
-    "m4v",
-    "wmv",
-    "m2ts",
-    "mts",
-    "ts",
-  ]),
-  audio: new Set([
-    "mp3",
-    "m4a",
-    "aac",
-    "flac",
-    "wav",
-    "ogg",
-    "opus",
-    "amr",
-    "mid",
-    "midi",
-    "ape",
-    "aiff",
-    "aif",
-    "wma",
-  ]),
-  documents: new Set([
-    "pdf",
-    "doc",
-    "docx",
-    "dot",
-    "dotx",
-    "wps",
-    "txt",
-    "log",
-    "ini",
-    "cfg",
-    "conf",
-    "yml",
-    "yaml",
-    "tsv",
-    "rtf",
-    "odt",
-    "xls",
-    "xlsx",
-    "xlsm",
-    "csv",
-    "ppt",
-    "pptx",
-    "pptm",
-    "odp",
-    "ods",
-    "odg",
-    "xml",
-    "json",
-    "html",
-    "htm",
-    "md",
-    "epub",
-    "mobi",
-  ]),
-};
-
-export function matchesCategory(kind: CategoryKind, name: string): boolean {
-  if (kind === "downloads") return true;
-  const ext = extOf(name);
-  if (!ext) return false;
-  return EXT[kind].has(ext);
-}
-
-export const CATEGORY_LABEL: Record<CategoryKind, string> = {
-  images: "Images",
-  videos: "Vidéos",
-  audio: "Musique",
-  documents: "Documents",
-  downloads: "Téléchargements",
-};
+export { matchesCategory, CATEGORY_LABEL };
 
 /* ---------- Roots per kind, per volume ---------- */
 
@@ -212,7 +113,7 @@ function walkRoot(
         for (const entry of res.entries) {
           if (entry.name.startsWith(".")) continue;
           if (entry.isDirectory) {
-            if (SKIP_NAMES.has(entry.name)) continue;
+            if (!shouldTraverseCategoryDir(entry.name, p.segments)) continue;
             queue.push({ rootId: p.rootId, segments: [...p.segments, entry.name] });
             continue;
           }
