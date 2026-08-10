@@ -6,6 +6,9 @@ import { useThumbnail } from "@/hooks/use-thumbnail";
 import { parseTrackName, fmtTime } from "./format";
 import { ArtworkFallback } from "./ArtworkFallback";
 
+/** Hauteur fixe d'une ligne : aucune re-mesure pendant le défilement. */
+const ROW_HEIGHT = 64;
+
 /**
  * Bottom sheet listing every media file in the current queue.
  *
@@ -132,66 +135,79 @@ export function QueueSheet({
             {entries.length}
           </span>
         </div>
-        <ul
+        <div
+          ref={listRef}
           className="overflow-y-auto px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]"
-          style={{ overscrollBehavior: "contain" }}
+          style={{ overscrollBehavior: "contain", flex: "1 1 auto", minHeight: 0 }}
         >
-          {entries.map((entry, i) => {
-            const meta = parseTrackName(entry.name);
-            const active = i === activeIndex;
-            const dur = durations?.[entry.name];
-            const thumb = thumbFor?.(entry) ?? null;
-            return (
-              <li
-                key={`${entry.name}-${i}`}
-                style={{ contentVisibility: "auto", containIntrinsicSize: "64px" }}
-              >
-                <button
-                  ref={active ? activeItemRef : undefined}
-                  type="button"
-                  onClick={() => {
-                    onSelect(i);
-                    onClose();
+          <div style={{ position: "relative", height: `${virtualizer.getTotalSize()}px` }}>
+            {virtualizer.getVirtualItems().map((v) => {
+              const entry = entries[v.index];
+              if (!entry) return null;
+              const i = v.index;
+              const meta = parseTrackName(entry.name);
+              const active = i === activeIndex;
+              const dur = durations?.[entry.name];
+              const thumb = thumbFor?.(entry) ?? null;
+              return (
+                <div
+                  key={`${entry.name}-${i}`}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: `${ROW_HEIGHT}px`,
+                    transform: `translateY(${v.start}px)`,
+                    contain: "layout paint style",
                   }}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors ${
-                    active ? "bg-white/10" : "hover:bg-white/5 active:bg-white/10"
-                  }`}
                 >
-                  <div className="relative h-12 w-[68px] shrink-0 overflow-hidden rounded-lg bg-white/5">
-                    <RowThumb
-                      path={pathFor?.(entry) ?? null}
-                      fallbackUrl={thumb}
-                      title={meta.title}
-                    />
-                    {active ? (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                        {variant === "audio" ? <WaveIndicator /> : <Play className="h-4 w-4" />}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelect(i);
+                      onClose();
+                    }}
+                    className={`flex h-full w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors ${
+                      active ? "bg-white/10" : "hover:bg-white/5 active:bg-white/10"
+                    }`}
+                  >
+                    <div className="relative h-12 w-[68px] shrink-0 overflow-hidden rounded-lg bg-white/5">
+                      <RowThumb
+                        path={pathFor?.(entry) ?? null}
+                        fallbackUrl={thumb}
+                        title={meta.title}
+                      />
+                      {active ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/45">
+                          {variant === "audio" ? <WaveIndicator /> : <Play className="h-4 w-4" />}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`truncate text-[13.5px] font-medium ${
+                          active ? "text-primary" : "text-white"
+                        }`}
+                      >
+                        {meta.title}
+                      </p>
+                      <p className="truncate text-[11.5px] text-white/55">
+                        {meta.artist ?? (variant === "audio" ? "Artiste inconnu" : "Vidéo")}
+                      </p>
+                    </div>
+                    {dur ? (
+                      <span className="shrink-0 text-[11px] tabular-nums text-white/55">
+                        {fmtTime(dur)}
                       </span>
                     ) : null}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`truncate text-[13.5px] font-medium ${
-                        active ? "text-primary" : "text-white"
-                      }`}
-                    >
-                      {meta.title}
-                    </p>
-                    <p className="truncate text-[11.5px] text-white/55">
-                      {meta.artist ?? (variant === "audio" ? "Artiste inconnu" : "Vidéo")}
-                    </p>
-                  </div>
-                  {dur ? (
-                    <span className="shrink-0 text-[11px] tabular-nums text-white/55">
-                      {fmtTime(dur)}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
