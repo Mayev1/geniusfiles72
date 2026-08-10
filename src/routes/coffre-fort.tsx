@@ -202,13 +202,7 @@ function VaultRoute() {
  * coffre-fort, comme sur un écran de verrouillage système. L'inset haut est
  * absorbé ici (`pt-safe`) et le bas via `env(safe-area-inset-bottom)`.
  */
-function VaultFullScreen({
-  children,
-  footer,
-}: {
-  children: ReactNode;
-  footer?: ReactNode;
-}) {
+function VaultFullScreen({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background pt-safe">
       <div className="flex items-center gap-1 px-2 pt-2">
