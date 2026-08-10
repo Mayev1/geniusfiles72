@@ -244,7 +244,6 @@ function BigAction({
   );
 }
 
-
 /* ------------------------------------------------------------------ */
 /* Envoyer                                                            */
 /* ------------------------------------------------------------------ */
@@ -1557,7 +1556,6 @@ function HistoryScreen() {
         ) : null}
       </div>
 
-
       {filtered.length === 0 ? (
         <EmptyState
           icon={History}
@@ -1596,9 +1594,8 @@ function HistoryScreen() {
                     {e.peerName}
                   </p>
                   <p className="mt-0.5 text-[12px] text-muted-foreground">
-                    {e.filesCount} fichier{e.filesCount > 1 ? "s" : ""} ·{" "}
-                    {formatSize(e.totalBytes)} ·{" "}
-                    {formatDuration(Math.max(1, Math.round(e.durationMs / 1000)))}
+                    {e.filesCount} fichier{e.filesCount > 1 ? "s" : ""} · {formatSize(e.totalBytes)}{" "}
+                    · {formatDuration(Math.max(1, Math.round(e.durationMs / 1000)))}
                   </p>
                   <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                     {new Date(e.endedAt).toLocaleString("fr-FR")}
@@ -1620,7 +1617,6 @@ function HistoryScreen() {
             </li>
           ))}
         </ul>
-
       )}
 
       <ConfirmDialog

@@ -377,7 +377,6 @@ function AppsPage() {
       <SectionHeader title="Recommandations" hint="Informations, aucune action automatique" />
       <RecommendationsBlock stats={stats} onSelect={setSelected} />
 
-
       <SortSheet
         open={sortSheet}
         current={sort}
@@ -416,9 +415,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={`gf-press flex h-10 shrink-0 items-center gap-1.5 rounded-2xl px-3.5 text-[12.5px] font-medium transition-colors ${
-        active
-          ? "bg-primary-softer text-primary"
-          : "bg-surface-2 text-muted-foreground"
+        active ? "bg-primary-softer text-primary" : "bg-surface-2 text-muted-foreground"
       }`}
     >
       {children}
@@ -471,7 +468,6 @@ function UsageAccessGate({
   );
 }
 
-
 function AppIconEl({ app, size = 40 }: { app: InstalledApp; size?: number }) {
   if (app.iconBase64) {
     return (
@@ -522,7 +518,6 @@ function AppRow({ app, onOpen }: { app: InstalledApp; onOpen: () => void }) {
     </button>
   );
 }
-
 
 function AppTile({ app, onOpen }: { app: InstalledApp; onOpen: () => void }) {
   const size = app.totalBytes || app.apkSize;
@@ -601,7 +596,6 @@ function StatsBlock({
     </div>
   );
 }
-
 
 function RecommendationsBlock({
   stats,
