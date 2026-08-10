@@ -48,7 +48,7 @@ import {
 } from "@/components/files/BottomSheet";
 import { DestinationPicker } from "@/components/files/DestinationPicker";
 import { FileIcon } from "@/components/files/FileIcon";
-import { FileSourcePicker } from "@/components/files/FileSourcePicker";
+import { ExplorerPicker } from "@/components/files/ExplorerPicker";
 import {
   ACTION_CATALOG,
   CONDITION_CATALOG,
@@ -1364,9 +1364,13 @@ function DestinationField({
 }
 
 /**
- * Wraps FileSourcePicker so it can produce a `FileSelection` (parent + entries).
- * The base picker returns absolute paths; we derive the parent PathRef from the
- * shared prefix and re-attach the FileEntry list.
+ * Sélection des éléments d'une automatisation.
+ *
+ * Ouvre le MODE SÉLECTION de GeniusFiles (stockages, catégories,
+ * dossiers, récents, recherche, tri) et récupère le dossier réel de
+ * chaque élément — plus aucune déduction de préfixe commun.
+ * `FileSelection` ne porte qu'un dossier : les éléments d'un autre
+ * dossier sont signalés puis écartés.
  */
 function SelectionPicker({
   open,
@@ -1380,96 +1384,31 @@ function SelectionPicker({
   onConfirm: (s: FileSelection) => void;
 }) {
   return (
-    <FileSourcePicker
+    <ExplorerPicker
       open={open}
       title="Choisir des éléments"
-      extensions={[
-        "pdf",
-        "jpg",
-        "jpeg",
-        "png",
-        "gif",
-        "webp",
-        "heic",
-        "mp4",
-        "mov",
-        "mkv",
-        "avi",
-        "mp3",
-        "m4a",
-        "wav",
-        "ogg",
-        "zip",
-        "rar",
-        "7z",
-        "tar",
-        "gz",
-        "txt",
-        "md",
-        "csv",
-        "doc",
-        "docx",
-        "xls",
-        "xlsx",
-        "ppt",
-        "pptx",
-        "apk",
-        "json",
-        "xml",
-        "html",
-        "js",
-        "ts",
-      ]}
+      extensions={[]}
       multi={multi}
       onCancel={onCancel}
-      onConfirm={(paths, entries) => {
-        if (!entries.length) return onCancel();
-        // Derive the parent PathRef from an entry's `path` (root-relative) and
-        // the first absolute path (which starts with the root prefix).
-        // The FileSourcePicker keeps entries in the same directory when `multi`
-        // is true, so the parent is unambiguous.
-        // Fallback: use the abs path stripped of the filename.
-        const abs = paths[0];
-        const name = entries[0].name;
-        const parentAbs = abs.endsWith(name) ? abs.slice(0, -name.length).replace(/\/$/, "") : abs;
-        const parent = absToPathRef(parentAbs);
-        onConfirm({ parent, entries });
+      onConfirm={(_paths, _entries, details) => {
+        const first = details.find((d) => d.parent);
+        if (!first?.parent) return onCancel();
+        const parent = first.parent;
+        const same = details.filter(
+          (d) =>
+            d.parent &&
+            d.parent.rootId === parent.rootId &&
+            d.parent.segments.join("/") === parent.segments.join("/"),
+        );
+        if (same.length < details.length) {
+          toast.warning("Un seul dossier source par automatisation", {
+            description: `${details.length - same.length} élément(s) d'un autre dossier ont été ignorés.`,
+          });
+        }
+        onConfirm({ parent, entries: same.map((d) => d.entry) });
       }}
     />
   );
-}
-
-/** Convert an absolute path back to a PathRef by matching a known root. */
-function absToPathRef(abs: string): PathRef {
-  // Import here would create a cycle; do a lightweight best-effort match
-  // against the roots exposed by fs.ts via toAbsolutePath.
-  const roots: PathRef["rootId"][] = [
-    "internal",
-    "documents",
-    "downloads",
-    "pictures",
-    "movies",
-    "music",
-    "sdcard",
-  ];
-  for (const r of roots) {
-    try {
-      const rootAbs = toAbsolutePath({ rootId: r, segments: [] });
-      if (abs === rootAbs) return { rootId: r, segments: [] };
-      if (abs.startsWith(rootAbs + "/")) {
-        return {
-          rootId: r,
-          segments: abs
-            .slice(rootAbs.length + 1)
-            .split("/")
-            .filter(Boolean),
-        };
-      }
-    } catch {
-      /* skip */
-    }
-  }
-  return { rootId: "internal", segments: abs.split("/").filter(Boolean) };
 }
 
 /* ─────────────────────── Step 3 — conditions ─────────────────────── */

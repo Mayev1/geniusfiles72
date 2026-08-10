@@ -1,16 +1,16 @@
 /**
  * Sélecteur de fichiers historique.
  *
- * L'ancien mini-menu a été supprimé : ce composant est désormais un
- * simple adaptateur vers {@link ExplorerPicker}, le véritable explorateur
- * GeniusFiles plein écran (catégories indexées, navigation dossiers,
- * recherche, grille/liste, aperçu, sélection multiple).
+ * Ce composant est un simple adaptateur vers {@link ExplorerPicker}, le
+ * MODE SÉLECTION de GeniusFiles : accueil, stockages, catégories,
+ * dossiers, fichiers récents, recherche, tri, vue liste/grille et
+ * sélection multiple persistante.
  *
  * L'API publique est inchangée, donc tous les appelants (outils PDF,
  * automatisations, coffre-fort) profitent du nouveau parcours sans
  * modification.
  */
-import { ExplorerPicker } from "@/components/files/ExplorerPicker";
+import { ExplorerPicker, type PickAccept } from "@/components/files/ExplorerPicker";
 import type { FileEntry } from "@/lib/files/types";
 
 export function FileSourcePicker({
@@ -18,6 +18,8 @@ export function FileSourcePicker({
   title,
   extensions,
   multi,
+  accept,
+  apps,
   onCancel,
   onConfirm,
 }: {
@@ -26,6 +28,10 @@ export function FileSourcePicker({
   /** Extensions minuscules sans point, ex. ["pdf"]. */
   extensions: string[];
   multi: boolean;
+  /** Types acceptés par la fonctionnalité appelante (défaut : fichiers). */
+  accept?: PickAccept;
+  /** Autorise la sélection d'applications installées. */
+  apps?: boolean;
   onCancel: () => void;
   onConfirm: (paths: string[], entries: FileEntry[]) => void;
 }) {
@@ -35,8 +41,10 @@ export function FileSourcePicker({
       title={title}
       extensions={extensions}
       multi={multi}
+      accept={accept}
+      apps={apps}
       onCancel={onCancel}
-      onConfirm={onConfirm}
+      onConfirm={(paths, entries) => onConfirm(paths, entries)}
     />
   );
 }
