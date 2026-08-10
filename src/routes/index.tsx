@@ -1,4 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useAppNavigate } from "@/lib/navigation/pick-nav";
+import { confirmPick, usePickRequest } from "@/lib/files/pick-session";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useBackHandler, BACK_PRIORITY } from "@/lib/navigation/back-stack";
@@ -203,9 +205,13 @@ type ActiveDialog =
       selection: string[];
     };
 
-function FilesPage() {
+export function FilesPage() {
   const { roots } = useRoots();
-  const routerNavigate = useNavigate();
+  const routerNavigate = useAppNavigate();
+  /* Session de sélection en cours (outils PDF, transfert, coffre-fort…) :
+     l'écran officiel est réutilisé tel quel, seules les actions de gestion
+     et l'ouverture d'un fichier changent de rôle. */
+  const pick = usePickRequest();
   const [path, setPath] = useState<PathRef | null>(null);
   const [historyLen, setHistoryLen] = useState(0);
 
@@ -554,7 +560,12 @@ function FilesPage() {
    */
   const quickOpenEntry = useCallback(
     (entry: FileEntry) => {
-      if (!path || entry.isDirectory) return;
+      if (!path) return;
+      if (entry.isDirectory) {
+        // Pendant une sélection, la vignette d'un dossier permet d'y entrer.
+        if (pick) navigateTo({ rootId: path.rootId, segments: [...path.segments, entry.name] });
+        return;
+      }
       if (canReadArchive(entry)) {
         openArchive(entry);
         return;
@@ -567,7 +578,7 @@ function FilesPage() {
     },
     // openArchive est stable pour un même chemin
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [path],
+    [path, pick, navigateTo],
   );
 
   const openRoot = useCallback(
@@ -633,9 +644,23 @@ function FilesPage() {
 
   const toggleSelect = useCallback(
     (entry: FileEntry) => {
-      if (path) toggleSelection(path, entry);
+      if (!path) return;
+      if (pick) {
+        // Un dossier reste ouvrable quand la fonctionnalité ne veut que des fichiers.
+        if (entry.isDirectory && pick.accept === "files") {
+          navigateTo({ rootId: path.rootId, segments: [...path.segments, entry.name] });
+          return;
+        }
+        if (!entry.isDirectory && pick.accept === "folders") return;
+        // Sélection unique : toucher l'élément valide directement l'action.
+        if (!pick.multi) {
+          confirmPick({ parent: path, entry });
+          return;
+        }
+      }
+      toggleSelection(path, entry);
     },
-    [path],
+    [path, pick, navigateTo],
   );
 
   const beginSelection = useCallback(
@@ -1085,9 +1110,13 @@ function FilesPage() {
           onOpen={openEntry}
           onQuickOpen={quickOpenEntry}
           onLongPress={beginSelection}
-          onMore={(e) => setDialog({ kind: "actions", entry: e })}
+          onMore={(e) => {
+            // Copier / déplacer / renommer / supprimer / partager sont masqués
+            // pendant un parcours de sélection.
+            if (!pick) setDialog({ kind: "actions", entry: e });
+          }}
           onRefresh={onRefresh}
-          selectionMode={selectionMode}
+          selectionMode={selectionMode || pick !== null}
           isSelected={(e) => selection.has(selectionKey(path, e.name))}
           onToggleSelect={toggleSelect}
         />
@@ -1095,7 +1124,7 @@ function FilesPage() {
         <RootView roots={roots} onOpenRoot={openRoot} />
       )}
 
-      {selectionMode ? (
+      {selectionMode && !pick ? (
         <>
           <SelectionBar
             count={selection.size}
@@ -1386,7 +1415,7 @@ function RootView({
   roots: ReturnType<typeof listRoots>;
   onOpenRoot: (id: PathRef["rootId"]) => void;
 }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { stats } = useStorageStats();
   const [snapshots, setSnapshots] = useState<FreeSnapshot[]>([]);
   const [scan, setScan] = useState<ScanResult | null>(null);
