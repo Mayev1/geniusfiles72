@@ -1426,7 +1426,6 @@ html.gf-immersive .gf-thumb-bar {
   animation: gf-pipeline-swap 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-
 @keyframes gf-pipeline-pop {
   from {
     transform: scale(0.6);
