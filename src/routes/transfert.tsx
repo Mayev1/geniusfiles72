@@ -35,6 +35,7 @@ import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/navigation/BackButton";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QrDisplay } from "@/components/transfer/QrDisplay";
 import { QrScanner } from "@/components/transfer/QrScanner";
