@@ -143,9 +143,19 @@ export function ScrollFeel() {
           page = null;
           return;
         }
+        /* Le geste est désormais vertical et appartient à la page : on
+           annule proprement toute pression en cours sur la liste (appui
+           long, amorce de sélection, ouverture) via un `pointercancel`
+           réel — chaque composant le reçoit et libère son état. */
+        if (e.target instanceof Element) {
+          e.target.dispatchEvent(
+            new PointerEvent("pointercancel", { bubbles: true, cancelable: false }),
+          );
+        }
         page.classList.remove("gf-pull-release");
         page.classList.add("gf-pulling");
       }
+
 
       if (!mode) return;
       if (e.cancelable) e.preventDefault();
