@@ -1709,7 +1709,7 @@ function RootView({
         }
       />
 
-      {pick ? null : <ResumeBanner />}
+      {pick ? <PickHowTo multi={pick.multi} /> : <ResumeBanner />}
 
       {/* Stockages — accès direct au gestionnaire de fichiers */}
       <StorageCards onOpenRoot={onOpenRoot} internalFilesFallback={totalFiles || undefined} />
@@ -1740,7 +1740,6 @@ function RootView({
       {/* Fichiers récents */}
       <RecentFilesSection />
 
-      {pick ? <PickHowTo multi={pick.multi} /> : null}
 
       {/* Tools grid — compact (masqués pendant une sélection) */}
       {pick ? null : (
