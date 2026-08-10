@@ -312,40 +312,15 @@ export function UniversalViewer({
     );
   }
 
-  if (kind === "audio" || kind === "video") {
-    const siblings = entries.filter((e) => viewerKindOf(e) === kind);
-    const rel = siblings.indexOf(entry);
-    const setRel = (i: number) => onIndexChange(entries.indexOf(siblings[i]));
+  if (kind === "video") {
+    const rel = relIndexOf(entry);
+    const setRel = (i: number) => onIndexChange(toAbsIndex(i));
     const fireP = (a: ViewerAction) => {
       setMenuOpen(false);
       onAction(entry, a);
     };
-    if (kind === "audio") {
-      // Hand playback off to the global audio store — the persistent player
-      // UI is mounted by AppShell so audio survives closing this viewer,
-      // navigating away, or backgrounding the app.
-      try {
-        audioStore.playQueue(
-          parent,
-          siblings,
-          Math.max(0, rel),
-          parentOf ? siblings.map((e) => parentOf(e)) : undefined,
-        );
-        audioStore.openUI();
-      } catch {
-        /* never throw during render */
-      }
-      // Close this dialog on next tick — the AudioPlayer overlay takes over.
-      queueMicrotask(() => {
-        try {
-          onClose();
-        } catch {
-          /* ignore */
-        }
-      });
-      return null;
-    }
     const Player = VideoPlayer;
+
     return (
       <>
         <Player
