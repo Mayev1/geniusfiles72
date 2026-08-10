@@ -1561,55 +1561,66 @@ function HistoryScreen() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={History}
-          title="Aucun transfert"
-          description="Vos envois et réceptions apparaîtront ici."
+          title={query ? "Aucun résultat" : "Aucun transfert"}
+          description={
+            query
+              ? "Aucun appareil ne correspond à cette recherche."
+              : "Vos envois et réceptions apparaîtront ici."
+          }
         />
       ) : (
         <ul className="space-y-2">
           {filtered.map((e) => (
             <li key={e.id}>
-              <div className="card-surface flex items-start gap-3 p-3">
+              <div className="gf-card flex items-start gap-3 p-3">
                 <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
                     e.status === "success"
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary-softer text-primary"
                       : e.status === "cancelled"
-                        ? "bg-secondary text-muted-foreground"
+                        ? "bg-surface-2 text-muted-foreground"
                         : "bg-destructive/10 text-destructive"
                   }`}
                 >
                   {e.status === "success" ? (
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle2 className="h-5 w-5" />
                   ) : e.status === "cancelled" ? (
-                    <Square className="h-4 w-4" />
+                    <Square className="h-5 w-5" />
                   ) : (
-                    <XCircle className="h-4 w-4" />
+                    <XCircle className="h-5 w-5" />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
+                  <p className="truncate text-[14.5px] font-semibold">
                     {e.role === "sender" ? "Envoyé à " : "Reçu de "}
                     {e.peerName}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {e.filesCount} fichiers · {formatSize(e.totalBytes)} ·{" "}
+                  <p className="mt-0.5 text-[12px] text-muted-foreground">
+                    {e.filesCount} fichier{e.filesCount > 1 ? "s" : ""} ·{" "}
+                    {formatSize(e.totalBytes)} ·{" "}
                     {formatDuration(Math.max(1, Math.round(e.durationMs / 1000)))}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {new Date(e.endedAt).toLocaleString()}
+                  <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                    {new Date(e.endedAt).toLocaleString("fr-FR")}
+                    {e.status === "success"
+                      ? ""
+                      : e.status === "cancelled"
+                        ? " · Annulé"
+                        : " · Échec"}
                   </p>
                 </div>
                 <button
                   onClick={() => removeHistoryEntry(e.id)}
-                  className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label="Supprimer"
+                  className="gf-press flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground"
+                  aria-label="Supprimer de l'historique"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </li>
           ))}
         </ul>
+
       )}
 
       <ConfirmDialog
