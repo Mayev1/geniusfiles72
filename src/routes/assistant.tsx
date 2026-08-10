@@ -187,11 +187,7 @@ function AssistantPage() {
   // Session persistante : l'instance vit hors de React, donc quitter la
   // page n'interrompt jamais la tâche en cours.
   const chatInstance = useMemo(() => getChat(), []);
-  const conversationId = useSyncExternalStore(
-    subscribeConversationId,
-    getConversationId,
-    () => "",
-  );
+  const conversationId = useSyncExternalStore(subscribeConversationId, getConversationId, () => "");
   const chat = useChat({ chat: chatInstance });
   const { messages, status, error } = chat;
 

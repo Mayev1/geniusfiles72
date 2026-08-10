@@ -73,9 +73,7 @@ function rank(id: StepId): number {
 
 function build(): TaskSnapshot {
   if (phase === "idle") return IDLE;
-  const visible = ORDER.filter(
-    (id) => usedEngine || (id !== "execute" && id !== "verify"),
-  );
+  const visible = ORDER.filter((id) => usedEngine || (id !== "execute" && id !== "verify"));
   const cur = rank(currentId);
   const steps: TaskStep[] = visible.map((id) => {
     const r = rank(id);
@@ -169,7 +167,9 @@ function startPolling() {
     if (last?.role === "assistant") {
       const parts = Array.isArray(last.parts) ? last.parts : [];
       const hasText = parts.some(
-        (p) => (p as { type?: string; text?: string }).type === "text" && !!(p as { text?: string }).text,
+        (p) =>
+          (p as { type?: string; text?: string }).type === "text" &&
+          !!(p as { text?: string }).text,
       );
       if (hasText) advance("respond");
     }
