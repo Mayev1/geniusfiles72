@@ -1,10 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-  type UIMessage,
-} from "ai";
+import type { UIMessage } from "ai";
 import {
   useCallback,
   useEffect,
@@ -22,32 +18,33 @@ import {
   ShieldCheck,
   MessagesSquare,
   WifiOff,
+  Copy,
+  Check,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AssistantMarkdown } from "@/components/assistant/AssistantMarkdown";
 import { AssistantDrawer } from "@/components/assistant/AssistantDrawer";
-import {
-  PipelineTrace,
-  type PipelineStep,
-  type PipelineState,
-} from "@/components/assistant/PipelineTrace";
+import { PipelineTrace } from "@/components/assistant/PipelineTrace";
 import { TemplateMarquee } from "@/components/assistant/TemplateMarquee";
-import { chatApiUrl } from "@/lib/ai/api-url";
-import { runEngineTool } from "@/lib/ai/tools/execute";
-import { getEngineStage, subscribeEngineStage } from "@/lib/ai/tools/stage";
-import { aiLog, chatFetch, describeChatError } from "@/lib/ai/diagnostics";
-
+import { describeChatError } from "@/lib/ai/diagnostics";
 import {
-  clearConversations,
-  getActiveId,
-  getConversation,
-  newId,
-  saveConversation,
-  setActiveId,
-} from "@/lib/ai/conversations";
+  getChat,
+  getConversationId,
+  getServerTask,
+  getTask,
+  openStoredConversation,
+  resetSession,
+  retryTask,
+  sendUserMessage,
+  setStorageProvider,
+  startNewConversation,
+  stopTask,
+  subscribeConversationId,
+  subscribeTask,
+} from "@/lib/ai/session";
+import { clearConversations } from "@/lib/ai/conversations";
 import { useRoots } from "@/lib/fs/useRoots";
 import { useViewportInset } from "@/hooks/use-viewport-inset";
-import { errorMessage } from "@/lib/errors/humanize";
 import { kbSentence } from "@/lib/keyboard-props";
 import { chatOfflineCopy } from "@/lib/copy/empty-illustrations";
 
@@ -98,6 +95,7 @@ function AssistantError({ error, reset }: { error: Error; reset: () => void }) {
             type="button"
             onClick={() => {
               clearConversations();
+              resetSession();
               reset();
             }}
             className="btn-primary gf-press"
@@ -108,54 +106,6 @@ function AssistantError({ error, reset }: { error: Error; reset: () => void }) {
       </div>
     </AppShell>
   );
-}
-
-/** Libellés d'avancement — jamais de chemin, de dossier ni de vocabulaire technique. */
-const ACTION_LABELS: Record<string, string> = {
-  list_storage_roots: "Lecture des emplacements…",
-  list: "Lecture de vos dossiers…",
-  search: "Recherche des fichiers…",
-  analyze: "Analyse du stockage…",
-  properties: "Lecture des informations…",
-  create: "Création du dossier…",
-  rename: "Renommage en cours…",
-  delete: "Suppression en cours…",
-  copy: "Copie des fichiers…",
-  move: "Déplacement des fichiers…",
-  organize: "Rangement des fichiers…",
-  compress: "Compression en cours…",
-  extract: "Extraction en cours…",
-  share: "Préparation du partage…",
-  sort: "Tri des fichiers…",
-  filter: "Filtrage des fichiers…",
-};
-
-/** Libellés des étapes de la pipeline (aucun vocabulaire technique). */
-const STEP_LABELS = {
-  understand: "Compréhension de la demande",
-  plan: "Analyse et planification",
-  execute: "Exécution par le moteur local",
-  verify: "Vérification des résultats",
-  respond: "Rédaction de la réponse",
-} as const;
-
-type ToolPart = {
-  type: string;
-  toolCallId?: string;
-  state?: string;
-  input?: unknown;
-  output?: unknown;
-  errorText?: string;
-};
-
-function commandOf(part: ToolPart): string {
-  const input = part.input as { type?: unknown } | undefined;
-  return (input?.type as string | undefined) ?? part.type.replace(/^tool-/, "");
-}
-
-function isRunning(part: ToolPart): boolean {
-  const s = part.state ?? "input-available";
-  return s === "input-streaming" || s === "input-available" || s === "call" || s === "partial-call";
 }
 
 /** Connexion réseau de l'appareil, suivie en direct (aucun redémarrage requis). */
@@ -178,10 +128,6 @@ function useIsOnline(): boolean {
 
 /**
  * État « hors connexion » affiché dans la conversation.
- *
- * Icône du système d'icônes de l'application (aucune ressource graphique)
- * et même style typographique que les autres écrans d'état. Apparition
- * discrète : léger fondu.
  */
 function ChatOfflineState({ onRetry }: { onRetry?: () => void }) {
   const copy = chatOfflineCopy();
@@ -210,15 +156,10 @@ function ChatOfflineState({ onRetry }: { onRetry?: () => void }) {
 function AssistantPage() {
   const [input, setInput] = useState("");
   const isOnline = useIsOnline();
-  // Vrai uniquement après une tentative d'envoi hors connexion : l'état
-  // disparaît dès le retour du réseau, sans redémarrage.
   const [offlineBlocked, setOfflineBlocked] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [conversationId, setConversationId] = useState<string>(() => newId());
   const endRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  // Défilement automatique « intelligent » : on ne suit le flux que si
-  // l'utilisateur est déjà en bas de la conversation.
   const atBottomRef = useRef(true);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -230,103 +171,34 @@ function AssistantPage() {
 
   const { keyboardInset } = useViewportInset();
 
-  // Étape réelle publiée par le moteur d'exécution pendant qu'il travaille.
-  const engineStage = useSyncExternalStore(
-    subscribeEngineStage,
-    getEngineStage,
-    () => null as string | null,
+  // Le contexte de stockage est lu au moment de la requête, sans lier la
+  // session au cycle de vie de cet écran.
+  useEffect(() => {
+    setStorageProvider(() =>
+      rootsRef.current.map((r) => ({
+        rootId: r.id,
+        label: r.label,
+        hint: r.hint ?? null,
+        available: r.available,
+      })),
+    );
+  }, []);
+
+  // Session persistante : l'instance vit hors de React, donc quitter la
+  // page n'interrompt jamais la tâche en cours.
+  const chatInstance = useMemo(() => getChat(), []);
+  const conversationId = useSyncExternalStore(
+    subscribeConversationId,
+    getConversationId,
+    () => "",
   );
+  const chat = useChat({ chat: chatInstance });
+  const { messages, status, error } = chat;
 
-  // L'URL de l'API est résolue au moment de la requête (et non au premier
-  // rendu) : dans l'APK, le pont Capacitor peut ne pas encore être injecté
-  // à l'hydratation, ce qui produirait une URL relative injoignable.
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: chatApiUrl(),
-        fetch: (input, init) => chatFetch(chatApiUrl(), init),
-        body: () => ({
-          storages: rootsRef.current.map((r) => ({
-            rootId: r.id,
-            label: r.label,
-            hint: r.hint ?? null,
-            available: r.available,
-          })),
-        }),
-      }),
-    [],
-  );
-
-  const chat = useChat({
-    transport,
-
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onError: (err) => {
-      aiLog("erreur assistant", err);
-    },
-    onToolCall: ({ toolCall }) => {
-      const startedAt = Date.now();
-      aiLog("commande moteur", { tool: toolCall.toolName, input: toolCall.input });
-      const send = (output: unknown) => {
-        aiLog("résultat moteur", { tool: toolCall.toolName, ms: Date.now() - startedAt });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (chat.addToolOutput as any)({
-          tool: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          output,
-        });
-      };
-      // Une erreur du moteur ne doit jamais bloquer la conversation :
-      // on renvoie un résultat d'échec lisible au lieu de rejeter.
-      void runEngineTool(toolCall.toolName, toolCall.input)
-        .then(send)
-        .catch((err: unknown) => {
-          console.error("[assistant] tool error", err);
-          send({ ok: false, error: errorMessage(err, "Action impossible") });
-        });
-    },
-  });
-  const { messages, sendMessage, status, stop, error, setMessages, regenerate } = chat;
-
+  const task = useSyncExternalStore(subscribeTask, getTask, getServerTask);
   const isBusy = status === "submitted" || status === "streaming";
+  const taskRunning = task.phase !== "idle";
 
-  /**
-   * Un tour reste « actif » de l'envoi jusqu'à la toute fin du traitement.
-   * Cela couvre les micro-pauses du statut entre l'exécution d'une commande
-   * moteur et la relance automatique du modèle : la ligne d'activité ne
-   * redevient donc jamais vide en cours de route.
-   */
-  const [turnActive, setTurnActive] = useState(false);
-  useEffect(() => {
-    if (isBusy) {
-      setTurnActive(true);
-      return;
-    }
-    if (!turnActive) return;
-    const t = setTimeout(() => setTurnActive(false), 450);
-    return () => clearTimeout(t);
-  }, [isBusy, turnActive]);
-
-  // Reprise de la dernière conversation au montage.
-  useEffect(() => {
-    const active = getActiveId();
-    if (!active) return;
-    const conv = getConversation(active);
-    if (conv && conv.messages.length) {
-      setConversationId(conv.id);
-      setMessages(conv.messages);
-    }
-  }, [setMessages]);
-
-  // Sauvegarde locale à chaque fin de tour.
-  useEffect(() => {
-    if (!messages.length || isBusy) return;
-    saveConversation(conversationId, messages);
-    setActiveId(conversationId);
-  }, [messages, isBusy, conversationId]);
-
-  // Le défilement n'est JAMAIS forcé : l'utilisateur garde le contrôle de
-  // sa position de lecture. On ne recentre qu'après un envoi manuel.
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -354,15 +226,13 @@ function AssistantPage() {
     const text = input.trim();
     if (!text || isBusy) return;
     if (!navigator.onLine) {
-      // Envoi bloqué : le texte saisi est intégralement conservé.
       setOfflineBlocked(true);
       requestAnimationFrame(scrollToEnd);
       return;
     }
     setOfflineBlocked(false);
     setInput("");
-    setTurnActive(true);
-    void sendMessage({ text });
+    sendUserMessage(text);
     requestAnimationFrame(scrollToEnd);
   };
 
@@ -381,94 +251,16 @@ function AssistantPage() {
   };
 
   const startNew = () => {
-    const id = newId();
-    setConversationId(id);
-    setActiveId(id);
-    setMessages([]);
+    startNewConversation();
     setInput("");
   };
 
-  const openConversation = (id: string) => {
-    const conv = getConversation(id);
-    if (!conv) return;
-    setConversationId(conv.id);
-    setActiveId(conv.id);
-    setMessages(conv.messages);
-  };
-
-  /**
-   * Pipeline réelle du tour en cours.
-   *
-   * Chaque étape est déduite de l'état effectif du flux : message envoyé,
-   * réflexion du modèle, commande transmise au moteur local (avec sa
-   * progression réelle), reprise du modèle, puis rédaction. Les étapes
-   * « exécution » et « vérification » n'apparaissent que si une commande a
-   * réellement été demandée par le modèle.
-   */
-  const pipeline = useMemo<PipelineStep[]>(() => {
-    if (!isBusy && !turnActive) return [];
-
-    const last = messages[messages.length - 1];
-    const all =
-      last?.role === "assistant" && Array.isArray(last.parts) ? (last.parts as unknown[]) : [];
-    const parts = all.filter(
-      (p) => typeof (p as ToolPart)?.type === "string" && (p as ToolPart).type.startsWith("tool-"),
-    ) as ToolPart[];
-    const running = [...parts].reverse().find(isRunning);
-    const failed = parts.find((p) => p.state === "output-error" || Boolean(p.errorText));
-    const hasText = all.some(
-      (p) =>
-        (p as { type?: string; text?: string })?.type === "text" && !!(p as { text?: string }).text,
-    );
-    const finished = !isBusy;
-
-    const steps: PipelineStep[] = [];
-    const push = (id: string, label: string, state: PipelineState, detail?: string) => {
-      steps.push({ id, label, state, detail });
-    };
-
-    const usesEngine = parts.length > 0 || Boolean(engineStage);
-
-    if (last?.role !== "assistant") {
-      push("understand", STEP_LABELS.understand, finished ? "done" : "active");
-      push("plan", STEP_LABELS.plan, "pending");
-      push("respond", STEP_LABELS.respond, "pending");
-      return steps;
-    }
-
-    push("understand", STEP_LABELS.understand, "done");
-
-    if (!usesEngine && !hasText) {
-      push("plan", STEP_LABELS.plan, finished ? "done" : "active");
-      push("respond", STEP_LABELS.respond, "pending");
-      return steps;
-    }
-
-    push("plan", STEP_LABELS.plan, "done");
-
-    if (usesEngine) {
-      const detail =
-        engineStage ?? (running ? (ACTION_LABELS[commandOf(running)] ?? undefined) : undefined);
-      const execState: PipelineState = failed
-        ? "failed"
-        : running || (engineStage && !hasText)
-          ? "active"
-          : "done";
-      push("execute", STEP_LABELS.execute, execState, detail);
-      push(
-        "verify",
-        STEP_LABELS.verify,
-        execState === "done" ? (hasText || finished ? "done" : "active") : "pending",
-      );
-    }
-
-    push(
-      "respond",
-      STEP_LABELS.respond,
-      hasText ? (finished ? "done" : "active") : finished ? "done" : "pending",
-    );
-    return steps;
-  }, [isBusy, turnActive, engineStage, messages]);
+  // Pendant la rédaction, la pipeline reste au-dessus de la réponse en
+  // cours : la structure « pipeline → réponse » ne bouge plus.
+  const lastIsStreamingAssistant =
+    taskRunning && messages[messages.length - 1]?.role === "assistant";
+  const head = lastIsStreamingAssistant ? messages.slice(0, -1) : messages;
+  const tail = lastIsStreamingAssistant ? messages[messages.length - 1] : null;
 
   // Suivi du flux uniquement si l'utilisateur lit déjà le bas de l'écran.
   useEffect(() => {
@@ -479,7 +271,7 @@ function AssistantPage() {
       el.scrollTop = el.scrollHeight;
     });
     return () => cancelAnimationFrame(raf);
-  }, [messages, pipeline]);
+  }, [messages, task]);
 
   const canSend = Boolean(input.trim()) && !(offlineBlocked && !isOnline);
   const bottomSpace = keyboardInset > 0 ? 12 : undefined;
@@ -529,24 +321,24 @@ function AssistantPage() {
             paddingRight: "calc(env(safe-area-inset-right, 0px) + 1rem)",
           }}
         >
-          {messages.length === 0 ? (
+          {messages.length === 0 && !taskRunning ? (
             <Welcome />
           ) : (
-            messages.map((m) => <MessageBubble key={m.id} message={m} />)
+            head.map((m) => <MessageBubble key={m.id} message={m} />)
           )}
 
           {offlineBlocked ? <ChatOfflineState onRetry={() => handleSubmit()} /> : null}
 
-          <PipelineTrace steps={pipeline} />
+          <PipelineTrace task={task} />
+
+          {tail ? <MessageBubble key={tail.id} message={tail} streaming /> : null}
 
           {error ? (
             <div className="gf-chat-safe rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
               <p className="mb-2">{describeChatError(error)}</p>
               <button
                 type="button"
-                onClick={() => {
-                  void regenerate();
-                }}
+                onClick={() => retryTask()}
                 className="rounded-xl border border-destructive/40 bg-background/40 px-3 py-1.5 text-[12px] font-medium"
               >
                 Réessayer
@@ -600,7 +392,7 @@ function AssistantPage() {
             {isBusy ? (
               <button
                 type="button"
-                onClick={() => stop()}
+                onClick={() => stopTask()}
                 aria-label="Arrêter la réponse"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground transition-transform duration-100 active:scale-90"
               >
@@ -628,7 +420,7 @@ function AssistantPage() {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         activeId={conversationId}
-        onOpenConversation={openConversation}
+        onOpenConversation={openStoredConversation}
         onNewConversation={startNew}
       />
     </AppShell>
@@ -673,17 +465,60 @@ function Welcome() {
   );
 }
 
-function MessageBubble({ message }: { message: UIMessage }) {
+/**
+ * Bouton « Copier » discret placé sous chaque message. La zone tactile
+ * reste confortable (32 px) sans allonger la carte du message.
+ */
+function CopyButton({ text, align }: { text: string; align: "start" | "end" }) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => (timer.current ? clearTimeout(timer.current) : undefined), []);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      return;
+    }
+    setCopied(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 1400);
+  };
+
+  return (
+    <div className={`mt-1 flex ${align === "end" ? "justify-end" : "justify-start"}`}>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        aria-label={copied ? "Message copié" : "Copier le message"}
+        className="flex h-8 items-center gap-1.5 rounded-full px-2 text-[11.5px] font-medium text-muted-foreground transition-colors duration-150 hover:bg-surface-2 hover:text-foreground active:scale-95"
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-primary" strokeWidth={2.6} />
+        ) : (
+          <Copy className="h-3.5 w-3.5" strokeWidth={2.1} />
+        )}
+        <span>{copied ? "Copié" : "Copier"}</span>
+      </button>
+    </div>
+  );
+}
+
+function MessageBubble({ message, streaming }: { message: UIMessage; streaming?: boolean }) {
   const isUser = message.role === "user";
   const parts = Array.isArray(message.parts) ? message.parts : [];
   const text = parts.map((p) => (p?.type === "text" ? p.text : "")).join("");
 
   if (isUser) {
     return (
-      <div className="animate-in-up flex justify-end">
-        <div className="gf-chat-safe max-w-[85%] rounded-[24px] rounded-br-lg bg-primary px-4 py-3 text-[14.5px] leading-relaxed text-primary-foreground">
-          <p className="whitespace-pre-wrap">{text}</p>
+      <div className="animate-in-up">
+        <div className="flex justify-end">
+          <div className="gf-chat-safe max-w-[85%] rounded-[24px] rounded-br-lg bg-primary px-4 py-3 text-[14.5px] leading-relaxed text-primary-foreground">
+            <p className="whitespace-pre-wrap">{text}</p>
+          </div>
         </div>
+        <CopyButton text={text} align="end" />
       </div>
     );
   }
@@ -697,22 +532,17 @@ function MessageBubble({ message }: { message: UIMessage }) {
       <div className="gf-chat-safe rounded-[24px] rounded-bl-lg bg-surface px-4 py-4">
         <SmoothText text={text} />
       </div>
+      {streaming ? null : <CopyButton text={text} align="start" />}
     </div>
   );
 }
 
 /**
  * Nettoie une portion de markdown en cours de frappe.
- *
- * On coupe les marqueurs incomplets (`**`, `*`, `` ` ``, `#`) et les titres
- * ou puces à peine amorcés : la mise en page apparaît donc déjà correcte,
- * sans clignotement de syntaxe ni saut de ligne rétroactif.
  */
 function stabilizeMarkdown(chunk: string): string {
   let out = chunk;
-  // Titre ou puce commencé mais encore sans contenu → on l'attend.
   out = out.replace(/\n[#*\-\d.]{1,4}\s*$/u, "\n");
-  // Marqueur d'emphase ou de code laissé ouvert en fin de flux.
   out = out.replace(/(\*{1,2}|`)+$/u, "");
   const bold = (out.match(/\*\*/g) ?? []).length;
   if (bold % 2 === 1) out = out.slice(0, out.lastIndexOf("**"));
@@ -723,10 +553,6 @@ function stabilizeMarkdown(chunk: string): string {
 
 /**
  * Révélation progressive du texte de l'assistant.
- *
- * Le contenu n'apparaît jamais d'un bloc : il se dévoile caractère par
- * caractère (vitesse adaptative), avec un fondu doux. Aucun saut visuel,
- * aucun re-flow brutal — la réponse « s'écrit ».
  */
 function SmoothText({ text }: { text: string }) {
   const [shown, setShown] = useState(0);
@@ -734,15 +560,12 @@ function SmoothText({ text }: { text: string }) {
 
   useEffect(() => {
     if (shown >= target) return;
-    // Plus il reste de texte, plus la révélation est rapide : la fin d'une
-    // longue réponse n'attend jamais.
     const step = Math.max(2, Math.ceil((target - shown) / 18));
     const timer = setTimeout(() => setShown((s) => Math.min(target, s + step)), 16);
     return () => clearTimeout(timer);
   }, [shown, target]);
 
   useEffect(() => {
-    // Nouveau message plus court (régénération) : on repart proprement.
     if (target < shown) setShown(target);
   }, [target, shown]);
 
