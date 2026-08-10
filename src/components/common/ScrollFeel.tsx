@@ -156,7 +156,6 @@ export function ScrollFeel() {
         page.classList.add("gf-pulling");
       }
 
-
       if (!mode) return;
       if (e.cancelable) e.preventDefault();
 

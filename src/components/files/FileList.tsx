@@ -69,7 +69,6 @@ function usePressBinder(entry: FileEntry, onLongPress: (e: FileEntry) => void) {
   };
 }
 
-
 export function FileListView({
   entries,
   parent,

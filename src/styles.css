@@ -1495,7 +1495,6 @@ body {
   pointer-events: none;
 }
 
-
 .gf-pull-spinner {
   opacity: 0;
   transition: opacity 160ms ease;
