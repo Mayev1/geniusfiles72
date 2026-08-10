@@ -326,7 +326,9 @@ export function UniversalViewer({
           onIndexChange={setRel}
           onClose={onClose}
           onMenu={() => setMenuOpen(true)}
+          parentFor={parentOf}
         />
+
         <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Actions">
           <div className="flex flex-col">
             <MenuRow icon={Info} label="Informations" onClick={() => fireP("info")} />
