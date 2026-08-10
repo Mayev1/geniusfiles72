@@ -8,7 +8,13 @@
  * d'ajout réelles) sur une fenêtre de 7 jours ; la liste connue
  * s'affiche instantanément puis se rafraîchit en arrière-plan.
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useAppNavigate } from "@/lib/navigation/pick-nav";
+import { confirmPick, usePickRequest } from "@/lib/files/pick-session";
+import {
+  toggleSelection as toggleGlobalSelection,
+  useSelection as useGlobalSelection,
+} from "@/lib/files/selection-store";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { toast } from "sonner";
@@ -95,8 +101,10 @@ function parentOf(f: AddedFile): PathRef {
   return { rootId: f.rootId, segments: f.folderSegments };
 }
 
-function AddedFilesPage() {
-  const navigate = useNavigate();
+export function AddedFilesPage() {
+  const navigate = useAppNavigate();
+  const pick = usePickRequest();
+  const globalSelection = useGlobalSelection();
   const goBack = useAppBack();
 
   const [files, setFiles] = useState<AddedFile[]>([]);
@@ -247,15 +255,28 @@ function AddedFilesPage() {
       : "Calcul…"
     : formatSize(selectionSize.bytes);
 
-  const toggleSelect = useCallback((entry: FileEntry) => {
-    const id = addedId(entry as AddedFile);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleSelect = useCallback(
+    (entry: FileEntry) => {
+      const f = entry as AddedFile;
+      if (pick) {
+        if (pick.accept === "folders") return;
+        if (!pick.multi) {
+          confirmPick({ parent: parentOf(f), entry: f });
+          return;
+        }
+        toggleGlobalSelection(parentOf(f), f);
+        return;
+      }
+      const id = addedId(f);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    [pick],
+  );
   const beginSelection = useCallback((entry: FileEntry) => {
     setSelected(new Set([addedId(entry as AddedFile)]));
   }, []);
@@ -279,8 +300,11 @@ function AddedFilesPage() {
     });
   }, [sorted]);
   const isSelected = useCallback(
-    (e: FileEntry) => selected.has(addedId(e as AddedFile)),
-    [selected],
+    (e: FileEntry) =>
+      pick
+        ? globalSelection.has(selectionKey(parentOf(e as AddedFile), e.name))
+        : selected.has(addedId(e as AddedFile)),
+    [selected, pick, globalSelection],
   );
 
   const refreshAfterMutation = () => {
@@ -572,8 +596,10 @@ function AddedFilesPage() {
                   onOpen={openEntry}
                   onQuickOpen={quickOpenEntry}
                   onLongPress={beginSelection}
-                  onMore={(e) => setDialog({ kind: "actions", entry: e })}
-                  selectionMode={selectionMode}
+                  onMore={(e) => {
+                    if (!pick) setDialog({ kind: "actions", entry: e });
+                  }}
+                  selectionMode={selectionMode || pick !== null}
                   isSelected={isSelected}
                   onToggleSelect={toggleSelect}
                 />
@@ -583,8 +609,10 @@ function AddedFilesPage() {
                   onOpen={openEntry}
                   onQuickOpen={quickOpenEntry}
                   onLongPress={beginSelection}
-                  onMore={(e) => setDialog({ kind: "actions", entry: e })}
-                  selectionMode={selectionMode}
+                  onMore={(e) => {
+                    if (!pick) setDialog({ kind: "actions", entry: e });
+                  }}
+                  selectionMode={selectionMode || pick !== null}
                   isSelected={isSelected}
                   onToggleSelect={toggleSelect}
                 />
@@ -594,7 +622,7 @@ function AddedFilesPage() {
         </div>
       )}
 
-      {selectionMode ? (
+      {selectionMode && !pick ? (
         <SelectionBar
           count={selectedFiles.length}
           onCopy={() => setDialog({ kind: "picker", mode: "copy", items: selectedFiles })}

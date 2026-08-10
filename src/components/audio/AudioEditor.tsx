@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { FileSourcePicker } from "@/components/files/FileSourcePicker";
 import type { FileEntry, PathRef } from "@/lib/files/types";
 import { BottomSheet, PrimaryButton, TextField } from "@/components/files/BottomSheet";
 import { formatSize } from "@/lib/files/format";
@@ -2823,16 +2824,8 @@ function MergePicker({
   onCancel: () => void;
   onPick: (entry: FileEntry, absolute: string) => void;
 }) {
-  const [Picker, setPicker] = useState<null | typeof import("@/components/files/ExplorerPicker")>(
-    null,
-  );
-  useEffect(() => {
-    void import("@/components/files/ExplorerPicker").then(setPicker);
-  }, []);
-  if (!Picker) return null;
-  const { ExplorerPicker } = Picker;
   return (
-    <ExplorerPicker
+    <FileSourcePicker
       open
       title={title}
       extensions={["mp3", "wav", "m4a", "aac", "ogg", "opus", "flac"]}

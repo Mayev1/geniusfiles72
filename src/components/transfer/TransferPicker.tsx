@@ -1,13 +1,11 @@
 /**
- * Sélecteur du module Transfert.
+ * Sélection d'éléments à envoyer (module Transfert).
  *
- * Adaptateur sur {@link ExplorerPicker} (MODE SÉLECTION de GeniusFiles) :
- * fichiers, dossiers ET applications installées peuvent être envoyés.
- * Pour une application, l'élément transféré est son APK réel
- * (`sourceDir`), lu par le moteur de transfert comme n'importe quel
- * fichier.
+ * Aucune interface propre : la sélection se fait dans l'interface
+ * officielle de GeniusFiles (voir {@link FileSourcePicker}), fichiers et
+ * dossiers confondus.
  */
-import { ExplorerPicker } from "@/components/files/ExplorerPicker";
+import { FileSourcePicker } from "@/components/files/FileSourcePicker";
 import type { FileEntry } from "@/lib/files/types";
 
 export type PickedItem = {
@@ -28,13 +26,11 @@ export function TransferPicker({
   onConfirm: (items: PickedItem[]) => void;
 }) {
   return (
-    <ExplorerPicker
+    <FileSourcePicker
       open={open}
-      title="Choisir des éléments à envoyer"
       extensions={[]}
       multi
       accept="both"
-      apps
       onCancel={onCancel}
       onConfirm={(_paths, _entries, details) => {
         onConfirm(

@@ -6,6 +6,7 @@ import { QuickScrollFab } from "@/components/common/QuickScrollFab";
 import { ScrollFeel } from "@/components/common/ScrollFeel";
 import { TransferTracker } from "@/components/jobs/TransferTracker";
 import { useReaderMode } from "@/lib/viewer/reader-mode";
+import { useInPickLayer } from "@/components/files/pick-layer-context";
 
 type NavItem = {
   to: string;
@@ -26,7 +27,11 @@ export function AppShell({ children }: { children?: ReactNode }) {
   /* Pendant la lecture d'un document, la navigation principale est
      entièrement retirée de l'arbre : aucune hauteur, aucun événement. */
   const reader = useReaderMode();
-  const isHome = pathname === "/";
+  /* Rendu à l'intérieur d'une session de sélection : la navigation
+     principale, le lecteur et les suivis sont déjà montés par l'écran
+     appelant — on ne les duplique pas. */
+  const inPick = useInPickLayer();
+  const isHome = pathname === "/" || inPick;
   /* Écrans dotés d'un en-tête collant (FilesTopBar ou PageHeader) : ils
      absorbent eux-mêmes l'inset supérieur. Un padding ici laisserait une
      bande vide au-dessus du titre. */
@@ -71,18 +76,18 @@ export function AppShell({ children }: { children?: ReactNode }) {
           {children ?? <Outlet />}
         </div>
       </main>
-      <PlayerHost />
+      {inPick ? null : <PlayerHost />}
       {/* Sensation de défilement native : résistance de bord sur le seul
           contenu + tirer pour actualiser (jamais en mode lecture). */}
-      {reader ? null : <ScrollFeel />}
+      {reader || inPick ? null : <ScrollFeel />}
 
       {/* Navigation verticale rapide : la fenêtre est le conteneur défilant
           de tous les écrans de listes. Masquée en mode lecture (le lecteur
           monte sa propre pastille sur son contenu) et en conversation. */}
-      {isChat || reader ? null : <QuickScrollFab topInset={72} bottomInset={96} />}
+      {isChat || reader || inPick ? null : <QuickScrollFab topInset={72} bottomInset={96} />}
       {/* Transferts en arrière-plan : suivi permanent (sans interface). */}
-      <TransferTracker />
-      {reader ? null : <BottomNav pathname={pathname} />}
+      {inPick ? null : <TransferTracker />}
+      {reader || inPick ? null : <BottomNav pathname={pathname} />}
       {/* Écran opaque de la barre d'état : garantit qu'aucun contenu
           scrollé ne puisse apparaître derrière elle, sur toutes les pages
           (le lecteur plein écran a sa propre barre opaque). */}

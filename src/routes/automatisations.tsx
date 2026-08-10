@@ -48,7 +48,7 @@ import {
 } from "@/components/files/BottomSheet";
 import { DestinationPicker } from "@/components/files/DestinationPicker";
 import { FileIcon } from "@/components/files/FileIcon";
-import { ExplorerPicker } from "@/components/files/ExplorerPicker";
+import { FileSourcePicker } from "@/components/files/FileSourcePicker";
 import {
   ACTION_CATALOG,
   CONDITION_CATALOG,
@@ -1384,9 +1384,9 @@ function SelectionPicker({
   onConfirm: (s: FileSelection) => void;
 }) {
   return (
-    <ExplorerPicker
+    <FileSourcePicker
       open={open}
-      title="Choisir des éléments"
+      accept="both"
       extensions={[]}
       multi={multi}
       onCancel={onCancel}

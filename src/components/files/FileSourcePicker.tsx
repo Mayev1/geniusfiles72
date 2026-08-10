@@ -1,50 +1,83 @@
 /**
- * Sélecteur de fichiers historique.
+ * Déclencheur de sélection de fichiers / dossiers.
  *
- * Ce composant est un simple adaptateur vers {@link ExplorerPicker}, le
- * MODE SÉLECTION de GeniusFiles : accueil, stockages, catégories,
- * dossiers, fichiers récents, recherche, tri, vue liste/grille et
- * sélection multiple persistante.
+ * Ce composant n'affiche AUCUNE interface : il ouvre une *session de
+ * sélection* qui présente l'interface officielle de GeniusFiles (accueil,
+ * stockages, catégories, dossiers, fichiers récents, recherche, tri) par
+ * dessus la fonctionnalité appelante. Celle-ci reste montée, conserve son
+ * contexte, et reçoit les éléments réellement choisis à la validation.
  *
- * L'API publique est inchangée, donc tous les appelants (outils PDF,
- * automatisations, coffre-fort) profitent du nouveau parcours sans
- * modification.
+ * L'API publique est inchangée : tous les appelants (outils PDF,
+ * automatisations, coffre-fort, transfert, éditeur audio) fonctionnent
+ * sans modification.
  */
-import { ExplorerPicker, type PickAccept } from "@/components/files/ExplorerPicker";
+import { useEffect, useRef } from "react";
+
 import type { FileEntry } from "@/lib/files/types";
+import {
+  cancelPick,
+  requestPick,
+  type PickAccept,
+  type PickedDetail,
+} from "@/lib/files/pick-session";
+
+export type { PickAccept, PickedDetail };
 
 export function FileSourcePicker({
   open,
-  title,
   extensions,
   multi,
-  accept,
-  apps,
+  accept = "files",
   onCancel,
   onConfirm,
 }: {
   open: boolean;
-  title: string;
+  /** Conservé pour compatibilité ; aucun en-tête de sélection n'est affiché. */
+  title?: string;
   /** Extensions minuscules sans point, ex. ["pdf"]. */
   extensions: string[];
   multi: boolean;
   /** Types acceptés par la fonctionnalité appelante (défaut : fichiers). */
   accept?: PickAccept;
-  /** Autorise la sélection d'applications installées. */
+  /** @deprecated la sélection d'applications n'existe plus. */
   apps?: boolean;
   onCancel: () => void;
-  onConfirm: (paths: string[], entries: FileEntry[]) => void;
+  onConfirm: (paths: string[], entries: FileEntry[], details: PickedDetail[]) => void;
 }) {
-  return (
-    <ExplorerPicker
-      open={open}
-      title={title}
-      extensions={extensions}
-      multi={multi}
-      accept={accept}
-      apps={apps}
-      onCancel={onCancel}
-      onConfirm={(paths, entries) => onConfirm(paths, entries)}
-    />
-  );
+  const started = useRef(false);
+  const callbacks = useRef({ onCancel, onConfirm });
+  useEffect(() => {
+    callbacks.current = { onCancel, onConfirm };
+  }, [onCancel, onConfirm]);
+
+  const extKey = extensions.join(",");
+  useEffect(() => {
+    if (!open) {
+      if (started.current) {
+        started.current = false;
+        cancelPick();
+      }
+      return;
+    }
+    if (started.current) return;
+    started.current = true;
+    void requestPick({
+      accept,
+      multi,
+      extensions: extKey ? extKey.split(",") : [],
+    }).then((result) => {
+      started.current = false;
+      if (!result) {
+        callbacks.current.onCancel();
+        return;
+      }
+      callbacks.current.onConfirm(
+        result.map((d) => d.absolutePath),
+        result.map((d) => d.entry),
+        result,
+      );
+    });
+  }, [open, accept, multi, extKey]);
+
+  return null;
 }

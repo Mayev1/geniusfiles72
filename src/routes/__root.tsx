@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useSystemIntegration } from "../lib/native/use-system-integration";
 import { PermissionGate } from "../components/PermissionGate";
 import { BackNavigator } from "../components/navigation/BackNavigator";
+import { PickLayer } from "@/components/files/PickLayer";
 import { installPageTransitions } from "../lib/navigation/page-transitions";
 import { startAutomationScheduler } from "../lib/automations/scheduler";
 import { ensureNotificationPermission } from "../lib/native/notifications";
@@ -323,6 +324,10 @@ function RootComponent() {
       <PermissionGate>
         <Outlet />
       </PermissionGate>
+      {/* Mode sélection : l'interface officielle de GeniusFiles est
+          présentée par-dessus la fonctionnalité appelante, qui reste
+          montée et conserve tout son contexte. */}
+      <PickLayer />
       <Toaster
         position="bottom-center"
         theme={toastTheme}

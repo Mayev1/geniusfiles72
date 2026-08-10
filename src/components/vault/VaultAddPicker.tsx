@@ -1,12 +1,8 @@
 /**
  * Coffre-fort — sélection des fichiers ET dossiers à déplacer dans le
- * coffre.
- *
- * Adaptateur sur {@link ExplorerPicker} : l'utilisateur reste dans le
- * MODE SÉLECTION de GeniusFiles (stockages, catégories, dossiers,
- * récents, recherche, tri) au lieu d'un mini-explorateur isolé.
+ * coffre, effectuée dans l'interface officielle de GeniusFiles.
  */
-import { ExplorerPicker } from "@/components/files/ExplorerPicker";
+import { FileSourcePicker } from "@/components/files/FileSourcePicker";
 import type { PublicSource } from "@/lib/vault/types";
 
 export function VaultAddPicker({
@@ -19,9 +15,8 @@ export function VaultAddPicker({
   onConfirm: (sources: PublicSource[]) => void;
 }) {
   return (
-    <ExplorerPicker
+    <FileSourcePicker
       open={open}
-      title="Ajouter au coffre-fort"
       extensions={[]}
       multi
       accept="both"
