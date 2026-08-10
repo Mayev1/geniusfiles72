@@ -1491,7 +1491,7 @@ body {
 
 /* Pendant le geste vertical, aucune interaction accidentelle avec la
    liste (sélection, appui long, ouverture) : le geste appartient au scroll. */
-.gf-pulling > *:not(header):not([data-gf-static]) {
+.gf-pulling:not(.gf-pull-release) > *:not(header):not([data-gf-static]) {
   pointer-events: none;
 }
 
