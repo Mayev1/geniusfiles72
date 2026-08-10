@@ -534,17 +534,29 @@ class AudioStore {
     this.saveTimer = window.setTimeout(() => this.save(), 400);
   }
 
+  /**
+   * Persistance bornée : seule une fenêtre autour de la piste courante est
+   * sérialisée (au plus {@link SAVE_WINDOW} éléments).
+   *
+   * Sans cette borne, une file issue d'une catégorie globale (100 000+
+   * pistes) était re-sérialisée toutes les 400 ms — à chaque `timeupdate`,
+   * chaque pause, chaque changement de piste — ce qui bloquait le thread
+   * principal et rendait les contrôles et la playlist lents.
+   */
   private save() {
     if (typeof window === "undefined") return;
     try {
       const { parent, parents, queue, index, shuffle, repeat, position } = this.state;
+      const start = Math.max(0, Math.min(queue.length, index - SAVE_WINDOW / 2) | 0);
+      const end = Math.min(queue.length, start + SAVE_WINDOW);
+      const slice = queue.slice(start, end);
       window.localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
           parent,
-          parents,
-          queue: queue.map((e) => ({ name: e.name, ext: e.ext, size: e.size, kind: e.kind })),
-          index,
+          parents: parents ? parents.slice(start, end) : null,
+          queue: slice.map((e) => ({ name: e.name, ext: e.ext, size: e.size, kind: e.kind })),
+          index: index - start,
           shuffle,
           repeat,
           position,
@@ -554,6 +566,7 @@ class AudioStore {
       /* quota / privacy — ignore */
     }
   }
+
 
   restore() {
     if (typeof window === "undefined") return;
