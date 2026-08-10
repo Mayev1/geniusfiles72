@@ -290,10 +290,19 @@ export function ImageViewer({
   const useCover =
     imageRatio != null && Math.abs(imageRatio - viewportRatio) / viewportRatio < 0.12;
 
-  const stageStyle: React.CSSProperties = {
-    transform: `translate3d(${tx + dragX}px, ${ty + dismissY}px, 0) scale(${
-      scale * (dismissY > 0 ? Math.max(0.7, 1 - dismissY / 900) : 1)
+  /* La pellicule : l'image précédente, l'image courante et la suivante sont
+     posées côte à côte et se déplacent ENSEMBLE avec le doigt — exactement
+     comme une galerie moderne. Aucun fondu, aucun saut. */
+  const trackStyle: React.CSSProperties = {
+    transform: `translate3d(${dragX}px, ${dismissY}px, 0) scale(${
+      dismissY > 0 ? Math.max(0.7, 1 - dismissY / 900) : 1
     })`,
+    transition: animate ? "transform 260ms cubic-bezier(0.22,0.61,0.36,1)" : "none",
+    willChange: "transform",
+  };
+
+  const zoomStyle: React.CSSProperties = {
+    transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
     transformOrigin: "center center",
     transition: animate ? "transform 220ms cubic-bezier(0.22,0.61,0.36,1)" : "none",
   };
@@ -327,30 +336,53 @@ export function ImageViewer({
         onPointerUp={finishPointer}
         onPointerCancel={finishPointer}
       >
-        <div className="flex h-full w-full items-center justify-center" style={stageStyle}>
-          {src ? (
-            <img
-              key={src}
-              src={src}
-              alt={entry.name}
-              draggable={false}
-              decoding="async"
-              fetchPriority="high"
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                decoded.set(src, true);
-                setMeta({ w: img.naturalWidth, h: img.naturalHeight });
-                setLoaded(true);
-              }}
-              className={`max-h-full max-w-full ${
-                useCover ? "h-full w-full object-cover" : "object-contain"
-              } transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">Aperçu indisponible</p>
-          )}
+        <div className="absolute inset-0" style={trackStyle}>
+          {[-1, 0, 1].map((off) => {
+            const neighbour = entries[index + off];
+            if (!neighbour) return null;
+            const url = off === 0 ? src : sourceUrlOf(parent, neighbour);
+            if (!url) return null;
+            return (
+              <div
+                key={`${index + off}:${url}`}
+                className="absolute inset-0 flex items-center justify-center"
+                style={{
+                  transform: `translate3d(calc(${off * 100}% + ${off * SLIDE_GAP}px), 0, 0)`,
+                }}
+              >
+                <div
+                  className="flex h-full w-full items-center justify-center"
+                  style={off === 0 ? zoomStyle : undefined}
+                >
+                  <img
+                    src={url}
+                    alt={off === 0 ? entry.name : ""}
+                    draggable={false}
+                    decoding="async"
+                    fetchPriority={off === 0 ? "high" : "low"}
+                    onLoad={(e) => {
+                      decoded.set(url, true);
+                      if (off !== 0) return;
+                      const img = e.currentTarget;
+                      setMeta({ w: img.naturalWidth, h: img.naturalHeight });
+                      setLoaded(true);
+                    }}
+                    className={`max-h-full max-w-full ${
+                      off === 0 && useCover ? "h-full w-full object-cover" : "object-contain"
+                    }`}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          {!src ? (
+            <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+              Aperçu indisponible
+            </p>
+          ) : null}
         </div>
       </div>
+
 
       {/* Top bar */}
       <div
