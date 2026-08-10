@@ -501,26 +501,28 @@ function AppRow({ app, onOpen }: { app: InstalledApp; onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="card-surface flex w-full items-center gap-3 p-2.5 text-left active:scale-[0.99]"
+      className="gf-card gf-press flex w-full items-center gap-3 p-3 text-left"
     >
-      <AppIconEl app={app} />
+      <AppIconEl app={app} size={44} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-medium">{app.label}</p>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className="truncate text-[14.5px] font-semibold">{app.label}</p>
           {app.isSystem ? (
-            <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
+            <span className="shrink-0 rounded-full bg-surface-3 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
               Système
             </span>
           ) : null}
         </div>
-        <p className="truncate text-[11px] text-muted-foreground">
-          {app.versionName || "—"} · {formatSize(size)}
+        <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+          {formatSize(size)}
+          {app.versionName ? ` · v${app.versionName}` : ""}
         </p>
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
   );
 }
+
 
 function AppTile({ app, onOpen }: { app: InstalledApp; onOpen: () => void }) {
   const size = app.totalBytes || app.apkSize;
