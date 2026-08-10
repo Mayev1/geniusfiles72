@@ -34,6 +34,7 @@ import {
 
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { ListSkeleton } from "@/components/ui/states";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -114,6 +115,13 @@ function CleanerPage() {
       mounted = false;
     };
   }, [tick]);
+
+  /* Tirer pour actualiser : relance l'analyse de nettoyage. */
+  usePullToRefresh(
+    useCallback(() => {
+      setTick((n) => n + 1);
+    }, []),
+  );
 
   // Kick off scan.
   useEffect(() => {

@@ -43,6 +43,7 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -720,6 +721,9 @@ function VaultBrowser() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const refresh = useCallback(() => setTick((n) => n + 1), []);
+
+  /* Tirer pour actualiser : relit le contenu du coffre déverrouillé. */
+  usePullToRefresh(refresh);
 
   useEffect(() => {
     const on = () => refresh();

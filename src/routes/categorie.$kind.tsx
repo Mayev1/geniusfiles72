@@ -10,6 +10,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { Search, X, FolderSearch } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { useAppBack } from "@/lib/navigation/use-app-back";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { FilesTopBar } from "@/components/files/FilesTopBar";
@@ -462,6 +463,14 @@ function CategoryPage() {
     }
     return [...m.values()];
   };
+
+  /* Tirer pour actualiser : reconstruction de l'index en tâche de fond,
+     la liste affichée n'est jamais vidée. */
+  usePullToRefresh(
+    useCallback(() => {
+      refreshCategory(kind);
+    }, [kind]),
+  );
 
   const refreshAfterMutation = () => {
     if (typeof window !== "undefined") {

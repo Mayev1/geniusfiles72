@@ -42,6 +42,7 @@ import { recordSnapshot, loadSnapshots, type FreeSnapshot } from "@/lib/files/sn
 import { usageTrash, autoPurgeTrash } from "@/lib/files/trash";
 import { ResumeBanner } from "@/components/jobs/ResumeBanner";
 import { AppShell } from "@/components/AppShell";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { PageHeader } from "@/components/common/PageHeader";
 
 import { markStartupSignal } from "@/lib/startup/boot";
@@ -594,6 +595,10 @@ function FilesPage() {
     setRefreshing(true);
     setReloadTick((t) => t + 1);
   }, []);
+
+  /* Tirer pour actualiser : relit le dossier courant (racines, dossiers
+     et sous-dossiers) sans perdre la position ni la sélection. */
+  usePullToRefresh(onRefresh);
 
   const sortedEntries = useMemo(() => {
     if (listing.status !== "ready") return [] as FileEntry[];

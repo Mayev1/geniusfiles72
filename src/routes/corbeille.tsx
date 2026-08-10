@@ -39,6 +39,7 @@ import {
 import { toast } from "sonner";
 import { IllustratedEmptyState } from "@/components/ui/IllustratedEmptyState";
 import { AppShell } from "@/components/AppShell";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { BackButton } from "@/components/navigation/BackButton";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { ListSkeleton } from "@/components/ui/states";
@@ -195,6 +196,8 @@ function TrashPage() {
       return new Set(Array.from(prev).filter((id) => stillThere.has(id)));
     });
   }, []);
+
+  usePullToRefresh(reload);
 
   useEffect(() => {
     reload();

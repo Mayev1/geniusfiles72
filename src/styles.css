@@ -1007,7 +1007,11 @@ canvas + .textLayer ~ canvas,
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overscroll-behavior-y: contain;
+    /* Aucun rebond de page : la WebView n'étire jamais l'interface, donc
+       l'en-tête collant et la barre de navigation restent immobiles. La
+       sensation de limite est rendue par ScrollFeel, sur le contenu seul. */
+    overscroll-behavior: none;
+
     text-rendering: optimizeLegibility;
   }
 
@@ -1419,4 +1423,41 @@ html.gf-immersive .gf-thumb-bar {
   .gf-pipeline-spin {
     animation-duration: 1400ms;
   }
+}
+
+/* ============================================================
+   Défilement natif — résistance de bord & tirer pour actualiser
+   Seul le CONTENU de la page bouge : l'en-tête collant (`> header`),
+   la barre de navigation et les couches fixes ne sont jamais touchés.
+   ============================================================ */
+html {
+  overscroll-behavior: none;
+}
+
+.gf-pulling > *:not(header) {
+  transform: translate3d(0, var(--gf-pull, 0px), 0);
+  will-change: transform;
+}
+
+.gf-pull-release > *:not(header) {
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gf-pull-spinner {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.gf-pull-icon {
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+[data-spin] .gf-pull-spinner {
+  opacity: 1;
+}
+
+[data-spin] .gf-pull-icon {
+  opacity: 0;
 }

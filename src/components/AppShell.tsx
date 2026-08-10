@@ -3,6 +3,7 @@ import { Home, Zap, Settings, Sparkles, FileText } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { PlayerHost } from "@/components/player/PlayerHost";
 import { QuickScrollFab } from "@/components/common/QuickScrollFab";
+import { ScrollFeel } from "@/components/common/ScrollFeel";
 import { TransferTracker } from "@/components/jobs/TransferTracker";
 import { useReaderMode } from "@/lib/viewer/reader-mode";
 
@@ -70,6 +71,10 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </div>
       </main>
       <PlayerHost />
+      {/* Sensation de défilement native : résistance de bord sur le seul
+          contenu + tirer pour actualiser (jamais en mode lecture). */}
+      {reader ? null : <ScrollFeel />}
+
       {/* Navigation verticale rapide : la fenêtre est le conteneur défilant
           de tous les écrans de listes. Masquée en mode lecture (le lecteur
           monte sa propre pastille sur son contenu) et en conversation. */}
