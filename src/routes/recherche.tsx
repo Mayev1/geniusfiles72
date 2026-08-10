@@ -1,4 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useAppNavigate } from "@/lib/navigation/pick-nav";
+import { confirmPick, usePickRequest } from "@/lib/files/pick-session";
+import { toggleSelection as toggleGlobalSelection } from "@/lib/files/selection-store";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
@@ -96,8 +99,9 @@ const SUGGESTIONS_DEFAULT = [
 
 const RESULTS_LIMIT = 500;
 
-function SearchPage() {
-  const navigate = useNavigate();
+export function SearchPage() {
+  const navigate = useAppNavigate();
+  const pick = usePickRequest();
   const { available: roots } = useRoots();
 
   const [query, setQuery] = useState("");
@@ -251,13 +255,29 @@ function SearchPage() {
 
   const openResult = useCallback(
     (r: SearchResult) => {
-      // Open the containing folder for files; open the folder itself for directories.
       const parentPath: PathRef = r.isDirectory
         ? { rootId: r.rootId, segments: r.segments }
         : { rootId: r.rootId, segments: r.parentSegments };
+      /* Session de sélection : un résultat est sélectionné (ou validé
+         directement en sélection unique) au lieu d'être ouvert. */
+      if (pick) {
+        if (r.isDirectory && pick.accept === "files") {
+          openFolder(parentPath);
+          return;
+        }
+        if (!r.isDirectory && pick.accept === "folders") return;
+        const parent: PathRef = { rootId: r.rootId, segments: r.parentSegments };
+        if (!pick.multi) {
+          confirmPick({ parent, entry: r });
+          return;
+        }
+        toggleGlobalSelection(parent, r);
+        return;
+      }
+      // Open the containing folder for files; open the folder itself for directories.
       openFolder(parentPath);
     },
-    [openFolder],
+    [openFolder, pick],
   );
 
   const activeFilterCount = filtersActive(filters);

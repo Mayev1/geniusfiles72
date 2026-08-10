@@ -255,15 +255,28 @@ export function AddedFilesPage() {
       : "Calcul…"
     : formatSize(selectionSize.bytes);
 
-  const toggleSelect = useCallback((entry: FileEntry) => {
-    const id = addedId(entry as AddedFile);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleSelect = useCallback(
+    (entry: FileEntry) => {
+      const f = entry as AddedFile;
+      if (pick) {
+        if (pick.accept === "folders") return;
+        if (!pick.multi) {
+          confirmPick({ parent: parentOf(f), entry: f });
+          return;
+        }
+        toggleGlobalSelection(parentOf(f), f);
+        return;
+      }
+      const id = addedId(f);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    [pick],
+  );
   const beginSelection = useCallback((entry: FileEntry) => {
     setSelected(new Set([addedId(entry as AddedFile)]));
   }, []);
