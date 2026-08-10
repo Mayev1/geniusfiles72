@@ -158,7 +158,6 @@ export function VideoPlayer({
     }
   }, [entries, index, parentOfEntry]);
 
-
   // ---- Mode immersif ------------------------------------------------------
   useEffect(() => {
     if (typeof document === "undefined") return;
