@@ -547,31 +547,65 @@ function AppTile({ app, onOpen }: { app: InstalledApp; onOpen: () => void }) {
 /* Stats + recommendations                                             */
 /* ------------------------------------------------------------------ */
 
-function StatsBlock({ stats }: { stats: ReturnType<typeof computeStats> }) {
+function StatsBlock({
+  stats,
+  usageAvailable,
+}: {
+  stats: ReturnType<typeof computeStats>;
+  usageAvailable: boolean;
+}) {
   const total = Math.max(1, stats.totalBytes);
-  const userPct = Math.round((stats.userBytes / total) * 100);
+  const userPct = Math.min(100, Math.round((stats.userBytes / total) * 100));
   return (
-    <div className="mt-3 grid grid-cols-2 gap-2">
-      <div className="card-surface p-3">
-        <p className="text-[11px] text-muted-foreground">Applications</p>
-        <p className="mt-1 text-lg font-semibold">{stats.total}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {stats.user} utilisateur · {stats.system} système
-        </p>
-      </div>
-      <div className="card-surface p-3">
-        <p className="text-[11px] text-muted-foreground">Espace occupé</p>
-        <p className="mt-1 text-lg font-semibold">{formatSize(stats.totalBytes)}</p>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
-          <div className="h-full bg-primary" style={{ width: `${Math.min(100, userPct)}%` }} />
+    <div className="gf-card mt-3 p-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Espace occupé
+          </p>
+          <p className="mt-1.5 truncate font-display text-[32px] font-bold leading-none text-primary">
+            {formatSize(stats.totalBytes)}
+          </p>
         </div>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {formatSize(stats.userBytes)} utilisateur
-        </p>
+        <span className="shrink-0 rounded-full bg-primary-softer px-2.5 py-1 text-[11px] font-semibold text-primary">
+          {stats.total} au total
+        </span>
+      </div>
+
+      <div className="mt-3.5 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3">
+        <span className="h-full bg-primary" style={{ width: `${userPct}%` }} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+          <span className="truncate">{stats.user} utilisateur</span>
+          <span className="shrink-0 font-semibold text-foreground">
+            {formatSize(stats.userBytes)}
+          </span>
+        </span>
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-surface-3" />
+          <span className="truncate">{stats.system} système</span>
+          <span className="shrink-0 font-semibold text-foreground">
+            {formatSize(Math.max(0, stats.totalBytes - stats.userBytes))}
+          </span>
+        </span>
+      </div>
+
+      <div className="mt-3.5 flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-[12px] leading-snug text-muted-foreground">
+        <Shield
+          className={`h-4 w-4 shrink-0 ${usageAvailable ? "text-primary" : "text-muted-foreground"}`}
+        />
+        <span className="min-w-0">
+          {usageAvailable
+            ? "Tailles réelles et dernière utilisation disponibles."
+            : "Tailles estimées : l'accès aux données d'utilisation n'est pas encore accordé."}
+        </span>
       </div>
     </div>
   );
 }
+
 
 function RecommendationsBlock({
   stats,
