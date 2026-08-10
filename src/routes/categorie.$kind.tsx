@@ -464,6 +464,14 @@ function CategoryPage() {
     return [...m.values()];
   };
 
+  /* Tirer pour actualiser : reconstruction de l'index en tâche de fond,
+     la liste affichée n'est jamais vidée. */
+  usePullToRefresh(
+    useCallback(() => {
+      refreshCategory(kind);
+    }, [kind]),
+  );
+
   const refreshAfterMutation = () => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("gf:storage-changed"));

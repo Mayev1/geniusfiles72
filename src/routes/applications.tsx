@@ -151,6 +151,9 @@ function AppsPage() {
     setLoading(false);
   }, []);
 
+  /* Tirer pour actualiser : relit la liste des applications. */
+  usePullToRefresh(load);
+
   useEffect(() => {
     void load();
   }, [load]);

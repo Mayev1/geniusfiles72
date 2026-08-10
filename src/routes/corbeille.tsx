@@ -197,6 +197,8 @@ function TrashPage() {
     });
   }, []);
 
+  usePullToRefresh(reload);
+
   useEffect(() => {
     reload();
     if (typeof window === "undefined") return;

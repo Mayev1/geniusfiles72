@@ -722,6 +722,9 @@ function VaultBrowser() {
 
   const refresh = useCallback(() => setTick((n) => n + 1), []);
 
+  /* Tirer pour actualiser : relit le contenu du coffre déverrouillé. */
+  usePullToRefresh(refresh);
+
   useEffect(() => {
     const on = () => refresh();
     window.addEventListener("gf:vault-changed", on);

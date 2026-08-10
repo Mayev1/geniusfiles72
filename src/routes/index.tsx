@@ -596,6 +596,10 @@ function FilesPage() {
     setReloadTick((t) => t + 1);
   }, []);
 
+  /* Tirer pour actualiser : relit le dossier courant (racines, dossiers
+     et sous-dossiers) sans perdre la position ni la sélection. */
+  usePullToRefresh(onRefresh);
+
   const sortedEntries = useMemo(() => {
     if (listing.status !== "ready") return [] as FileEntry[];
     return sortEntries(listing.entries, sortKey, sortOrder, foldersFirst);

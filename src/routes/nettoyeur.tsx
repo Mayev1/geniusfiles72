@@ -116,6 +116,13 @@ function CleanerPage() {
     };
   }, [tick]);
 
+  /* Tirer pour actualiser : relance l'analyse de nettoyage. */
+  usePullToRefresh(
+    useCallback(() => {
+      setTick((n) => n + 1);
+    }, []),
+  );
+
   // Kick off scan.
   useEffect(() => {
     setScanning(true);
