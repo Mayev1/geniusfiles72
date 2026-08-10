@@ -438,45 +438,39 @@ function UsageAccessGate({
   partial: boolean;
 }) {
   return (
-    <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+    <div className="gf-card mt-3 p-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-          <Shield className="h-4 w-4" />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-softer text-primary">
+          <Shield className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Autoriser l'accès aux données d'utilisation</p>
-          <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="text-[15px] font-semibold leading-snug">Afficher les tailles réelles</p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
             {partial
-              ? "GeniusFiles affiche vos applications, mais a besoin de cette autorisation Android pour connaître la taille réelle (code, données, cache) et la dernière utilisation de chaque application."
-              : "Cette autorisation Android permet à GeniusFiles de calculer la taille réelle de chaque application, sa dernière utilisation, et de repérer les applications rarement ouvertes."}
+              ? "Vos applications sont listées. L'accès Android aux données d'utilisation ajoute la taille réelle (code, données, cache) et la dernière ouverture."
+              : "L'accès Android aux données d'utilisation permet de calculer la taille réelle de chaque application et de repérer celles que vous n'ouvrez plus."}
           </p>
-          <ol className="mt-2 space-y-0.5 text-[11.5px] text-muted-foreground">
-            <li>1. Appuyez sur « Ouvrir les paramètres ».</li>
-            <li>2. Sélectionnez « GeniusFiles ».</li>
-            <li>3. Activez « Autoriser l'accès aux données d'utilisation ».</li>
-          </ol>
         </div>
       </div>
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={onGrant}
-          disabled={requesting}
-          className="flex-1 rounded-xl bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground shadow-elevated transition-transform active:scale-[0.98] disabled:opacity-60"
-        >
-          {requesting ? "Ouverture…" : "Ouvrir les paramètres"}
-        </button>
-        <button
-          type="button"
-          onClick={onRecheck}
-          className="inline-flex items-center gap-1 rounded-xl border border-border bg-secondary/60 px-3 py-2 text-[12px] font-medium text-muted-foreground hover:text-foreground"
-        >
-          <RefreshCw className="h-3.5 w-3.5" /> Réessayer
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onGrant}
+        disabled={requesting}
+        className="gf-press mt-3 h-12 w-full rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground shadow-elevated disabled:opacity-60"
+      >
+        {requesting ? "Ouverture…" : "Ouvrir les paramètres"}
+      </button>
+      <button
+        type="button"
+        onClick={onRecheck}
+        className="gf-press mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-2xl text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
+      >
+        <RefreshCw className="h-4 w-4" /> J'ai accordé l'autorisation — réessayer
+      </button>
     </div>
   );
 }
+
 
 function AppIconEl({ app, size = 40 }: { app: InstalledApp; size?: number }) {
   if (app.iconBase64) {
