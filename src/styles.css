@@ -1455,6 +1455,9 @@ html.gf-immersive .gf-thumb-bar {
 @media (prefers-reduced-motion: reduce) {
   .gf-pipeline,
   .gf-pipeline-detail,
+  .gf-pipeline-line,
+  .gf-pipeline-out,
+  .gf-pipeline-swap,
   .gf-pipeline-pop {
     animation: none;
   }
