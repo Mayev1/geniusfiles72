@@ -28,9 +28,9 @@ export type AddedFile = FileEntry & {
 
 const KEY = "gf.added.v1";
 const EVENT = "gf:added-changed";
-const MAX_ITEMS = 120;
-const MAX_DIRS = 60;
-const MAX_DEPTH = 2;
+const MAX_ITEMS = 600;
+const MAX_DIRS = 140;
+const MAX_DEPTH = 3;
 /** Fenêtre affichée par la page dédiée : 7 jours. */
 export const ADDED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const POLL_MS = 20_000;
