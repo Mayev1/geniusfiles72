@@ -271,7 +271,7 @@ export function UniversalViewer({
           parent={parent}
           entries={siblings}
           index={rel}
-          onIndexChange={(i: number) => onIndexChange(entries.indexOf(siblings[i]))}
+          onIndexChange={(i: number) => onIndexChange(toAbsIndex(i))}
           onClose={onClose}
           onMenu={() => setMenuOpen(true)}
           onShare={() => fireI("share")}
