@@ -2823,16 +2823,8 @@ function MergePicker({
   onCancel: () => void;
   onPick: (entry: FileEntry, absolute: string) => void;
 }) {
-  const [Picker, setPicker] = useState<null | typeof import("@/components/files/ExplorerPicker")>(
-    null,
-  );
-  useEffect(() => {
-    void import("@/components/files/ExplorerPicker").then(setPicker);
-  }, []);
-  if (!Picker) return null;
-  const { ExplorerPicker } = Picker;
   return (
-    <ExplorerPicker
+    <FileSourcePicker
       open
       title={title}
       extensions={["mp3", "wav", "m4a", "aac", "ogg", "opus", "flac"]}
