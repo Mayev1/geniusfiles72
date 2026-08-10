@@ -58,10 +58,13 @@ const IDLE: TaskSnapshot = { phase: "idle", steps: [], failed: false };
 
 let phase: TaskSnapshot["phase"] = "idle";
 let currentId: StepId = "understand";
-let usedEngine = false;
 let failed = false;
 let detail: string | null = null;
 let snapshot: TaskSnapshot = IDLE;
+/** Commandes moteur en cours : tant qu'il en reste, la tâche n'est pas finie. */
+let pendingTools = 0;
+/** Horodatage du dernier signe de vie du modèle (anti-clôture prématurée). */
+let lastActivity = 0;
 
 const taskListeners = new Set<() => void>();
 let closeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -73,9 +76,8 @@ function rank(id: StepId): number {
 
 function build(): TaskSnapshot {
   if (phase === "idle") return IDLE;
-  const visible = ORDER.filter((id) => usedEngine || (id !== "execute" && id !== "verify"));
   const cur = rank(currentId);
-  const steps: TaskStep[] = visible.map((id) => {
+  const steps: TaskStep[] = ORDER.map((id) => {
     const r = rank(id);
     let state: PipelineState;
     if (phase === "closing") state = failed && r === cur ? "failed" : "done";
@@ -107,7 +109,7 @@ export function getServerTask(): TaskSnapshot {
 
 /** Avance la pipeline — jamais en arrière. */
 function advance(id: StepId) {
-  if (id === "execute" || id === "verify") usedEngine = true;
+  lastActivity = Date.now();
   if (rank(id) <= rank(currentId)) return;
   currentId = id;
   detail = null;
@@ -121,15 +123,16 @@ function startTask() {
   }
   phase = "running";
   currentId = "understand";
-  usedEngine = false;
   failed = false;
   detail = null;
+  pendingTools = 0;
+  lastActivity = Date.now();
   emit();
   // La compréhension est immédiate : on bascule tout de suite sur l'analyse
   // dès que la requête part réellement vers le modèle.
   setTimeout(() => {
     if (phase === "running") advance("plan");
-  }, 220);
+  }, 160);
   startPolling();
 }
 
@@ -139,31 +142,35 @@ function endTask(withFailure = false) {
   if (!withFailure) currentId = "respond";
   phase = "closing";
   detail = null;
+  pendingTools = 0;
   emit();
   stopPolling();
+  persist();
   if (closeTimer) clearTimeout(closeTimer);
   closeTimer = setTimeout(() => {
     phase = "idle";
     emit();
-  }, 520);
+  }, 460);
 }
 
 /**
  * Rafraîchissement léger de l'état réel pendant qu'une tâche tourne :
- * étape publiée par le moteur, et apparition du texte de réponse. Cette
- * boucle vit hors de React, donc elle continue si l'utilisateur quitte
- * l'écran.
+ * étape publiée par le moteur, apparition du texte de réponse et
+ * sauvegarde continue. Cette boucle vit hors de React, donc elle continue
+ * si l'utilisateur quitte l'écran.
  */
 function startPolling() {
   if (pollTimer) return;
   pollTimer = setInterval(() => {
     if (phase !== "running") return;
     const stage = getEngineStage();
-    if (stage && stage !== detail && currentId === "execute") {
+    if (stage && stage !== detail && (currentId === "execute" || currentId === "verify")) {
       detail = stage;
+      lastActivity = Date.now();
       emit();
     }
-    const last = chat?.messages[chat.messages.length - 1];
+    const messages = chat?.messages ?? [];
+    const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
       const parts = Array.isArray(last.parts) ? last.parts : [];
       const hasText = parts.some(
@@ -173,7 +180,21 @@ function startPolling() {
       );
       if (hasText) advance("respond");
     }
-  }, 180);
+    // Sauvegarde continue : quitter l'application pendant le travail ne
+    // fait plus disparaître le message ni la réponse partielle.
+    persist();
+
+    // Filet de sécurité : si plus rien ne bouge et qu'aucune commande
+    // moteur n'est en cours, on clôt proprement au lieu de tourner à vide.
+    const status = chat?.status;
+    if (
+      pendingTools === 0 &&
+      (status === "ready" || status === "error") &&
+      Date.now() - lastActivity > 1200
+    ) {
+      endTask(status === "error");
+    }
+  }, 140);
 }
 
 function stopPolling() {
@@ -203,10 +224,22 @@ let chat: Chat<UIMessage> | null = null;
 let conversationId = "";
 
 const idListeners = new Set<() => void>();
+/** Abonnés à l'instance de conversation elle-même (nouvelle conversation…). */
+const chatListeners = new Set<() => void>();
 
 export function subscribeConversationId(listener: () => void): () => void {
   idListeners.add(listener);
   return () => idListeners.delete(listener);
+}
+
+/**
+ * Abonnement à l'instance de conversation active. Indispensable pour que
+ * « Nouvelle conversation » et l'ouverture d'un échange enregistré
+ * remplacent réellement la conversation affichée.
+ */
+export function subscribeChat(listener: () => void): () => void {
+  chatListeners.add(listener);
+  return () => chatListeners.delete(listener);
 }
 
 export function getConversationId(): string {
@@ -215,6 +248,7 @@ export function getConversationId(): string {
 
 function emitId() {
   for (const l of idListeners) l();
+  for (const l of chatListeners) l();
 }
 
 function persist() {
@@ -239,16 +273,20 @@ function createChat(id: string, messages: UIMessage[]): Chat<UIMessage> {
     },
     onToolCall: ({ toolCall }) => {
       const startedAt = Date.now();
+      pendingTools += 1;
       advance("execute");
+      lastActivity = Date.now();
       aiLog("commande moteur", { tool: toolCall.toolName, input: toolCall.input });
       const send = (output: unknown) => {
         aiLog("résultat moteur", { tool: toolCall.toolName, ms: Date.now() - startedAt });
+        pendingTools = Math.max(0, pendingTools - 1);
         instance.addToolOutput({
           tool: toolCall.toolName as never,
           toolCallId: toolCall.toolCallId,
           output: output as never,
         });
         advance("verify");
+        persist();
       };
       void runEngineTool(toolCall.toolName, toolCall.input)
         .then(send)
@@ -260,10 +298,11 @@ function createChat(id: string, messages: UIMessage[]): Chat<UIMessage> {
     onFinish: () => {
       // Un tour peut enchaîner plusieurs échanges (commande moteur puis
       // reprise du modèle) : on ne clôt la pipeline qu'au dernier.
-      const willContinue = lastAssistantMessageIsCompleteWithToolCalls({
-        messages: instance.messages,
-      });
+      lastActivity = Date.now();
       persist();
+      const willContinue =
+        pendingTools > 0 ||
+        lastAssistantMessageIsCompleteWithToolCalls({ messages: instance.messages });
       if (willContinue) {
         advance("verify");
         return;
@@ -296,7 +335,10 @@ function getConversationIdFromStorage(): string | null {
 export function sendUserMessage(text: string) {
   const c = getChat();
   startTask();
-  void c.sendMessage({ text });
+  void c.sendMessage({ text }).finally(persist);
+  // Le message utilisateur est enregistré immédiatement : quitter
+  // l'application juste après l'envoi ne le fait plus disparaître.
+  setTimeout(persist, 60);
 }
 
 export function stopTask() {
@@ -310,30 +352,44 @@ export function retryTask() {
   void c.regenerate();
 }
 
-export function startNewConversation() {
+/** Bascule vers une autre instance de conversation, proprement. */
+function swapChat(id: string, messages: UIMessage[]) {
   if (chat && chat.messages.length) persist();
   void chat?.stop();
-  endTask(false);
+  stopPolling();
+  if (closeTimer) {
+    clearTimeout(closeTimer);
+    closeTimer = null;
+  }
   phase = "idle";
+  failed = false;
+  detail = null;
+  pendingTools = 0;
+  currentId = "understand";
   emit();
-  conversationId = newId();
-  chat = createChat(conversationId, []);
-  setActiveId(conversationId);
+  conversationId = id;
+  chat = createChat(id, messages);
+  setActiveId(id);
   emitId();
+}
+
+export function startNewConversation() {
+  swapChat(newId(), []);
 }
 
 export function openStoredConversation(id: string) {
   const conv = getConversation(id);
   if (!conv) return;
-  if (chat && chat.messages.length) persist();
-  void chat?.stop();
-  endTask(false);
-  phase = "idle";
-  emit();
-  conversationId = conv.id;
-  chat = createChat(conv.id, conv.messages);
-  setActiveId(conv.id);
-  emitId();
+  swapChat(conv.id, conv.messages);
+}
+
+// Sauvegarde de sécurité quand l'application passe en arrière-plan.
+if (typeof window !== "undefined") {
+  const save = () => persist();
+  window.addEventListener("pagehide", save);
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") save();
+  });
 }
 
 /** Réinitialisation complète après une erreur de rendu. */

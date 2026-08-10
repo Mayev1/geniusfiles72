@@ -4,7 +4,6 @@ import type { UIMessage } from "ai";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -39,6 +38,7 @@ import {
   setStorageProvider,
   startNewConversation,
   stopTask,
+  subscribeChat,
   subscribeConversationId,
   subscribeTask,
 } from "@/lib/ai/session";
@@ -185,8 +185,9 @@ function AssistantPage() {
   }, []);
 
   // Session persistante : l'instance vit hors de React, donc quitter la
-  // page n'interrompt jamais la tâche en cours.
-  const chatInstance = useMemo(() => getChat(), []);
+  // page n'interrompt jamais la tâche en cours. On s'abonne à l'instance
+  // elle-même pour que « Nouvelle conversation » prenne effet aussitôt.
+  const chatInstance = useSyncExternalStore(subscribeChat, getChat, getChat);
   const conversationId = useSyncExternalStore(subscribeConversationId, getConversationId, () => "");
   const chat = useChat({ chat: chatInstance });
   const { messages, status, error } = chat;
