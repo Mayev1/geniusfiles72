@@ -192,7 +192,6 @@ function AssistantPage() {
   const chat = useChat({ chat: chatInstance });
   const { messages, status, error } = chat;
 
-
   const task = useSyncExternalStore(subscribeTask, getTask, getServerTask);
   const isBusy = status === "submitted" || status === "streaming";
   const taskRunning = task.phase !== "idle";

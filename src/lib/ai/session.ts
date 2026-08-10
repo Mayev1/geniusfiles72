@@ -203,7 +203,6 @@ function stopPolling() {
   pollTimer = null;
 }
 
-
 /* ------------------------------------------------------------------ */
 /* Conversation persistante                                            */
 /* ------------------------------------------------------------------ */
@@ -392,7 +391,6 @@ if (typeof window !== "undefined") {
     if (document.visibilityState === "hidden") save();
   });
 }
-
 
 /** Réinitialisation complète après une erreur de rendu. */
 export function resetSession() {
