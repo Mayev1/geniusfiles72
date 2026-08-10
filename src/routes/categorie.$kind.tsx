@@ -406,10 +406,22 @@ function CategoryPage() {
   }, [grouped, groups.length]);
 
   const idOf = (f: CategoryFile) => `${f.rootId}/${f.folderSegments.join("/")}/${f.name}`;
-  const selectedFiles = useMemo(
-    () => sorted.filter((f) => selected.has(idOf(f))),
-    [sorted, selected],
-  );
+  /* Index identifiant → fichier, construit une seule fois par liste : chaque
+     cocher/décocher devient O(taille de la sélection) au lieu d'un parcours
+     complet de la catégorie (100 000+ éléments). */
+  const byId = useMemo(() => {
+    const m = new Map<string, CategoryFile>();
+    for (const f of sorted) m.set(idOf(f), f);
+    return m;
+  }, [sorted]);
+  const selectedFiles = useMemo(() => {
+    const out: CategoryFile[] = [];
+    for (const id of selected) {
+      const f = byId.get(id);
+      if (f) out.push(f);
+    }
+    return out;
+  }, [byId, selected]);
 
   /* Taille réelle de la sélection — exactement le même mécanisme que le
      gestionnaire de fichiers (tailles connues pour les fichiers, mesure
