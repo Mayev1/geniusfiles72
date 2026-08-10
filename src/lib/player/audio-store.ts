@@ -54,7 +54,6 @@ const SAVE_WINDOW = 400;
 /** Au-delà, la comparaison de file se fait par échantillon (O(1)). */
 const DEEP_COMPARE_MAX = 2000;
 
-
 type Listener = () => void;
 
 function initialState(): AudioState {
@@ -384,7 +383,6 @@ class AudioStore {
       this.loadCurrent(true);
     } catch {
       /* never throw */
-
     }
   }
 
@@ -582,7 +580,6 @@ class AudioStore {
       /* quota / privacy — ignore */
     }
   }
-
 
   restore() {
     if (typeof window === "undefined") return;

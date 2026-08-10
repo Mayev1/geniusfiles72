@@ -144,10 +144,7 @@ export function UniversalViewer({
     return { siblings: list, relOf: rel, absOf: abs };
   }, [entries, kind]);
 
-  const relIndexOf = useCallback(
-    (e: FileEntry | null) => (e ? (relOf.get(e) ?? -1) : -1),
-    [relOf],
-  );
+  const relIndexOf = useCallback((e: FileEntry | null) => (e ? (relOf.get(e) ?? -1) : -1), [relOf]);
   const toAbsIndex = useCallback((rel: number) => absOf[rel] ?? 0, [absOf]);
 
   /* `parentOf` est souvent une lambda recréée à chaque rendu : on la lit via
@@ -163,7 +160,6 @@ export function UniversalViewer({
         : undefined,
     [siblings, kind],
   );
-
 
   // Les lecteurs de documents (PDF, Office, texte, ebook, fallback) gardent
   // une chrome permanente et opaque ; les médias immersifs (image / vidéo)
@@ -360,7 +356,6 @@ export function UniversalViewer({
   const key = entryKey(parent, entry);
   const relIndex = relIndexOf(entry);
   const previewCount = siblings.length;
-
 
   const fire = (a: ViewerAction) => {
     setMenuOpen(false);
