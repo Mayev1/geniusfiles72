@@ -144,6 +144,13 @@ function AddedFilesPage() {
     };
   }, []);
 
+  /* Tirer pour actualiser : relit la fenêtre des fichiers récents. */
+  usePullToRefresh(
+    useCallback(() => {
+      setFiles(loadAddedWindow());
+    }, []),
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return files;
