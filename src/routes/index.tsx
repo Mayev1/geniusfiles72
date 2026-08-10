@@ -1076,7 +1076,7 @@ export function FilesPage() {
           onFoldersFirstChange={onFoldersFirstChange}
           onRefresh={onRefresh}
           refreshing={refreshing}
-          onNewFolder={() => setDialog({ kind: "newFolder" })}
+          onNewFolder={pick ? undefined : () => setDialog({ kind: "newFolder" })}
           onSelect={() => sortedEntries[0] && beginSelection(sortedEntries[0])}
           selection={
             selectionMode
