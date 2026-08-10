@@ -61,6 +61,7 @@ import { DestinationPicker } from "@/components/files/DestinationPicker";
 import { ProgressDialog } from "@/components/files/ProgressDialog";
 import { VaultAddPicker } from "@/components/vault/VaultAddPicker";
 import { VaultPreview } from "@/components/vault/VaultPreview";
+import { PatternLock, PATTERN_MIN, patternLength } from "@/components/vault/PatternLock";
 import { formatDate, formatSize } from "@/lib/files/format";
 import {
   addFromPublic,
@@ -81,6 +82,7 @@ import {
   wipeVault,
 } from "@/lib/vault/api";
 import {
+  getVaultMethod,
   isVaultConfigured,
   isBiometricAvailable,
   isBiometricEnabled,
