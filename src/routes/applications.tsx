@@ -241,28 +241,29 @@ function AppsPage() {
 
   return (
     <AppShell>
-      <div className="flex items-center gap-2">
-        <BackButton
-          size={20}
-          className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-        />
-        <div className="flex-1">
-          <h1 className="text-[15px] font-semibold tracking-tight">Applications</h1>
-          <p className="text-[11px] text-muted-foreground">
-            {loading
-              ? "Analyse de vos applications en cours…"
-              : `${countLabel(stats.total, "application")} · ${formatSize(stats.totalBytes)} occupés`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Actualiser"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
-      </div>
+      <PageHeader
+        title="Applications"
+        subtitle={
+          loading
+            ? "Analyse de vos applications…"
+            : `${countLabel(stats.total, "application")} · ${formatSize(stats.totalBytes)}`
+        }
+        leading={
+          <BackButton className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground" />
+        }
+        action={
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="gf-press flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground"
+            aria-label="Actualiser la liste"
+          >
+            <RefreshCw className={`h-[18px] w-[18px] ${loading ? "animate-spin" : ""}`} />
+          </button>
+        }
+      />
+
+      <StatsBlock stats={stats} usageAvailable={usageAvailable} />
 
       {showUsageGate ? (
         <UsageAccessGate
@@ -273,68 +274,70 @@ function AppsPage() {
         />
       ) : null}
 
-      <StatsBlock stats={stats} />
-
-      <SectionHeader title="Toutes les applications" hint="Recherche et filtres" />
+      <SectionHeader title="Toutes les applications" />
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher par nom…"
-          className="w-full rounded-xl border border-border bg-secondary/60 py-2 pl-9 pr-9 text-sm outline-none focus:border-primary/50"
+          placeholder="Rechercher une application…"
+          className="h-12 w-full rounded-2xl bg-surface-2 pl-11 pr-11 text-[14px] outline-none ring-1 ring-inset ring-border/60 focus:ring-primary/50"
         />
         {query ? (
           <button
             type="button"
-            aria-label="Effacer"
+            aria-label="Effacer la recherche"
             onClick={() => setQuery("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground"
+            className="gf-press absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         ) : null}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <div className="flex flex-1 gap-1 overflow-x-auto scrollbar-hidden">
+      <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="flex min-w-0 gap-1.5 overflow-x-auto scrollbar-hidden">
           <Chip active={filter === "user"} onClick={() => setFilter("user")}>
-            <User className="h-3.5 w-3.5" /> Utilisateur
+            <User className="h-4 w-4" /> Utilisateur
           </Chip>
           <Chip active={filter === "system"} onClick={() => setFilter("system")}>
-            <Cpu className="h-3.5 w-3.5" /> Système
+            <Cpu className="h-4 w-4" /> Système
           </Chip>
           <Chip active={filter === "all"} onClick={() => setFilter("all")}>
             Toutes
           </Chip>
         </div>
-        <button
-          type="button"
-          onClick={() => setSortSheet(true)}
-          className="flex items-center gap-1 rounded-full border border-border bg-secondary/60 px-2.5 py-1 text-[11px]"
-        >
-          <ArrowUpDown className="h-3.5 w-3.5" /> {SORT_LABEL[sort]}
-        </button>
-        <button
-          type="button"
-          onClick={() => setLayout((l) => (l === "list" ? "grid" : "list"))}
-          className="rounded-full border border-border bg-secondary/60 p-1.5"
-          aria-label="Changer d'affichage"
-        >
-          {layout === "list" ? (
-            <Grid3x3 className="h-3.5 w-3.5" />
-          ) : (
-            <LayoutList className="h-3.5 w-3.5" />
-          )}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSortSheet(true)}
+            className="gf-press flex h-10 items-center gap-1.5 rounded-2xl bg-surface-2 px-3 text-[12.5px] font-medium text-muted-foreground"
+            aria-label={`Trier : ${SORT_LABEL[sort]}`}
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            <span className="hidden xs:inline">{SORT_LABEL[sort]}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLayout((l) => (l === "list" ? "grid" : "list"))}
+            className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground"
+            aria-label={layout === "list" ? "Affichage en grille" : "Affichage en liste"}
+          >
+            {layout === "list" ? (
+              <Grid3x3 className="h-4 w-4" />
+            ) : (
+              <LayoutList className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="mt-3">
         {loading && apps.length === 0 ? (
           <div className="grid gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-xl bg-secondary/50" />
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface-2" />
             ))}
           </div>
         ) : showPluginError && apps.length === 0 ? (
@@ -372,6 +375,7 @@ function AppsPage() {
 
       <SectionHeader title="Recommandations" hint="Informations, aucune action automatique" />
       <RecommendationsBlock stats={stats} onSelect={setSelected} />
+
 
       <SortSheet
         open={sortSheet}
