@@ -3,8 +3,10 @@ import { Home, Zap, Settings, Sparkles, FileText } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { PlayerHost } from "@/components/player/PlayerHost";
 import { QuickScrollFab } from "@/components/common/QuickScrollFab";
+import { ScrollFeel } from "@/components/common/ScrollFeel";
 import { TransferTracker } from "@/components/jobs/TransferTracker";
 import { useReaderMode } from "@/lib/viewer/reader-mode";
+
 
 type NavItem = {
   to: string;
