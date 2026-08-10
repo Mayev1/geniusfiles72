@@ -1007,7 +1007,11 @@ canvas + .textLayer ~ canvas,
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overscroll-behavior-y: contain;
+    /* Aucun rebond de page : la WebView n'étire jamais l'interface, donc
+       l'en-tête collant et la barre de navigation restent immobiles. La
+       sensation de limite est rendue par ScrollFeel, sur le contenu seul. */
+    overscroll-behavior: none;
+
     text-rendering: optimizeLegibility;
   }
 
