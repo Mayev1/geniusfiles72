@@ -236,8 +236,7 @@ export function ImageViewer({
         // freine nettement quand il n'y a aucune image de ce côté.
         const blocked = (dx > 0 && index === 0) || (dx < 0 && index === entries.length - 1);
         setDragX(blocked ? dx * 0.28 : dx);
-      }
-      else if (s.axis === "y" && dy > 0) setDismissY(dy);
+      } else if (s.axis === "y" && dy > 0) setDismissY(dy);
     }
   };
 
@@ -412,7 +411,6 @@ export function ImageViewer({
           ) : null}
         </div>
       </div>
-
 
       {/* Top bar */}
       <div

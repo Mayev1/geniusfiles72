@@ -32,14 +32,16 @@ function resist(distance: number, max: number) {
 function isBlocked(target: EventTarget | null): boolean {
   const el = target instanceof Element ? target : null;
   if (!el) return true;
-  if (el.closest('[data-gf-nopull], [role="dialog"], .gf-video-shell, input, textarea')) return true;
+  if (el.closest('[data-gf-nopull], [role="dialog"], .gf-video-shell, input, textarea'))
+    return true;
   // Zone défilante interne (carrousel, feuille, panneau) : elle gère son
   // propre défilement, la page ne doit pas intercepter le geste.
   let node: Element | null = el;
   while (node && node !== document.body) {
     const style = window.getComputedStyle(node);
     const oy = style.overflowY;
-    if ((oy === "auto" || oy === "scroll") && node.scrollHeight > node.clientHeight + 1) return true;
+    if ((oy === "auto" || oy === "scroll") && node.scrollHeight > node.clientHeight + 1)
+      return true;
     node = node.parentElement;
   }
   return false;

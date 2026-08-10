@@ -7,7 +7,6 @@ import { ScrollFeel } from "@/components/common/ScrollFeel";
 import { TransferTracker } from "@/components/jobs/TransferTracker";
 import { useReaderMode } from "@/lib/viewer/reader-mode";
 
-
 type NavItem = {
   to: string;
   label: string;
