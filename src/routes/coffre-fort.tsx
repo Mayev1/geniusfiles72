@@ -14,7 +14,7 @@
  * disappear from Fichiers, Galerie, Recherche or Nettoyeur.
  */
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   ArrowDownAZ,
@@ -26,6 +26,7 @@ import {
   Fingerprint,
   Folder,
   FolderPlus,
+  Grid3X3,
   KeyRound,
   Lock,
   LockKeyhole,
