@@ -190,8 +190,53 @@ function VaultRoute() {
 }
 
 /* ============================================================
+ *  Écran plein écran (configuration / déverrouillage)
+ * ==========================================================*/
+
+/**
+ * Les écrans de configuration et de déverrouillage sont **plein écran** :
+ * pas de navigation basse, pas d'en-tête d'application — uniquement le
+ * coffre-fort, comme sur un écran de verrouillage système. L'inset haut est
+ * absorbé ici (`pt-safe`) et le bas via `env(safe-area-inset-bottom)`.
+ */
+function VaultFullScreen({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-background pt-safe">
+      <div className="flex items-center gap-1 px-2 pt-2">
+        <Link
+          to="/"
+          aria-label="Quitter le coffre-fort"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground active:scale-95"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <span className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Coffre-fort
+        </span>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-6">{children}</div>
+      {footer ? (
+        <div className="border-t border-border/60 bg-background px-5 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3">
+          {footer}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ============================================================
  *  Setup wizard
  * ==========================================================*/
+
+function methodLabel(m: VaultAuthMethod): string {
+  return m === "pin" ? "code PIN" : m === "password" ? "mot de passe" : "schéma";
+}
 
 function SetupWizard({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<"method" | "secret" | "confirm">("method");
@@ -206,8 +251,12 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
     isBiometricAvailable().then(setBiometricAvailable);
   }, []);
 
-  const minLen = method === "pin" ? 4 : 6;
-  const validSecret = secret.length >= minLen && (method !== "pin" || /^\d+$/.test(secret));
+  const validSecret =
+    method === "pin"
+      ? secret.length >= 4 && /^\d+$/.test(secret)
+      : method === "password"
+        ? secret.length >= 6
+        : patternLength(secret) >= PATTERN_MIN;
   const matches = secret === confirmValue && validSecret;
 
   const finish = async () => {
@@ -225,24 +274,24 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <AppShell>
-      <div className="flex flex-col gap-4">
-        <div className="gf-card flex items-start gap-3 p-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-            <ShieldCheck className="h-5 w-5" />
+    <VaultFullScreen>
+      <div className="flex flex-col gap-4 pt-3">
+        <div className="flex flex-col items-center gap-3 pb-1 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-primary text-primary-foreground shadow-xs">
+            <ShieldCheck className="h-6 w-6" />
           </span>
           <div>
-            <p className="text-[15px] font-semibold text-foreground">
-              Configurer le coffre-fort sécurisé
-            </p>
-            <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
-              Vos fichiers sensibles resteront chiffrables, hors ligne et invisibles dans le reste
-              de GeniusFiles tant qu'ils sont protégés.
+            <h1 className="font-display text-[22px] font-bold tracking-tight text-foreground">
+              Configurer le coffre-fort
+            </h1>
+            <p className="mx-auto mt-1 max-w-[34ch] text-[12.5px] leading-snug text-muted-foreground">
+              Vos fichiers sensibles restent hors ligne et invisibles dans le reste de GeniusFiles
+              tant qu'ils sont protégés.
             </p>
           </div>
         </div>
 
-        <ol className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <ol className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
           <StepPill n={1} label="Méthode" active={step === "method"} done={step !== "method"} />
           <StepPill n={2} label="Code" active={step === "secret"} done={step === "confirm"} />
           <StepPill n={3} label="Confirmation" active={step === "confirm"} done={false} />
@@ -256,6 +305,13 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
               description="4 chiffres minimum — rapide à saisir sur mobile."
               selected={method === "pin"}
               onSelect={() => setMethod("pin")}
+            />
+            <MethodOption
+              icon={Grid3X3}
+              label="Schéma"
+              description="Reliez au moins 4 points sur une grille 3×3."
+              selected={method === "pattern"}
+              onSelect={() => setMethod("pattern")}
             />
             <MethodOption
               icon={LockKeyhole}
@@ -279,7 +335,7 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
                 <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">
                   {biometricAvailable
                     ? "Utiliser votre empreinte digitale ou votre visage comme raccourci."
-                    : "Non disponible sur cet appareil — le code PIN ou mot de passe reste requis."}
+                    : "Non disponible sur cet appareil — le code reste requis."}
                 </p>
               </div>
               <input
@@ -290,32 +346,61 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
                 className="mt-1"
               />
             </label>
-            <PrimaryButton onClick={() => setStep("secret")}>Continuer</PrimaryButton>
+            <PrimaryButton
+              onClick={() => {
+                setSecret("");
+                setConfirmValue("");
+                setStep("secret");
+              }}
+            >
+              Continuer
+            </PrimaryButton>
           </div>
         ) : null}
 
         {step === "secret" ? (
-          <div className="gf-card flex flex-col gap-3 p-4">
+          <div className="gf-card flex flex-col items-center gap-3 p-4">
             <label className="text-[11px] font-medium text-muted-foreground">
-              {method === "pin" ? "Choisissez un code PIN" : "Choisissez un mot de passe"}
+              {method === "pattern"
+                ? "Dessinez votre schéma"
+                : `Choisissez votre ${methodLabel(method)}`}
             </label>
-            <SecretInput
-              method={method}
-              value={secret}
-              onChange={setSecret}
-              autoFocus
-              placeholder={method === "pin" ? "••••" : "••••••"}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              {method === "pin"
-                ? "4 chiffres minimum. Évitez les suites évidentes comme 0000 ou 1234."
-                : "6 caractères minimum. Mélangez lettres, chiffres et symboles."}
-            </p>
-            <div className="flex justify-end gap-2">
+            {method === "pattern" ? (
+              <>
+                <PatternLock onComplete={(v) => setSecret(v)} />
+                <p className="text-[11px] text-muted-foreground">
+                  {secret
+                    ? `Schéma enregistré (${patternLength(secret)} points)`
+                    : "Reliez au moins 4 points sans lever le doigt."}
+                </p>
+              </>
+            ) : (
+              <>
+                <SecretInput
+                  method={method}
+                  value={secret}
+                  onChange={setSecret}
+                  autoFocus
+                  placeholder={method === "pin" ? "••••" : "••••••"}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {method === "pin"
+                    ? "4 chiffres minimum. Évitez les suites évidentes comme 0000 ou 1234."
+                    : "6 caractères minimum. Mélangez lettres, chiffres et symboles."}
+                </p>
+              </>
+            )}
+            <div className="flex w-full justify-end gap-2">
               <PrimaryButton variant="ghost" onClick={() => setStep("method")}>
                 Retour
               </PrimaryButton>
-              <PrimaryButton onClick={() => setStep("confirm")} disabled={!validSecret}>
+              <PrimaryButton
+                onClick={() => {
+                  setConfirmValue("");
+                  setStep("confirm");
+                }}
+                disabled={!validSecret}
+              >
                 Continuer
               </PrimaryButton>
             </div>
@@ -323,21 +408,28 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
         ) : null}
 
         {step === "confirm" ? (
-          <div className="gf-card flex flex-col gap-3 p-4">
+          <div className="gf-card flex flex-col items-center gap-3 p-4">
             <label className="text-[11px] font-medium text-muted-foreground">
-              Confirmez votre {method === "pin" ? "code PIN" : "mot de passe"}
+              Confirmez votre {methodLabel(method)}
             </label>
-            <SecretInput
-              method={method}
-              value={confirmValue}
-              onChange={setConfirmValue}
-              autoFocus
-              placeholder={method === "pin" ? "••••" : "••••••"}
-            />
+            {method === "pattern" ? (
+              <PatternLock
+                onComplete={(v) => setConfirmValue(v)}
+                error={!!confirmValue && !matches}
+              />
+            ) : (
+              <SecretInput
+                method={method}
+                value={confirmValue}
+                onChange={setConfirmValue}
+                autoFocus
+                placeholder={method === "pin" ? "••••" : "••••••"}
+              />
+            )}
             {confirmValue && !matches ? (
-              <p className="text-[11px] text-red-400">Les valeurs ne correspondent pas.</p>
+              <p className="text-[11px] text-destructive">Les valeurs ne correspondent pas.</p>
             ) : null}
-            <div className="flex justify-end gap-2">
+            <div className="flex w-full justify-end gap-2">
               <PrimaryButton variant="ghost" onClick={() => setStep("secret")}>
                 Retour
               </PrimaryButton>
@@ -348,7 +440,7 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
           </div>
         ) : null}
       </div>
-    </AppShell>
+    </VaultFullScreen>
   );
 }
 
@@ -459,16 +551,8 @@ function LockScreen({ onUnlocked, onReset }: { onUnlocked: () => void; onReset: 
   const [error, setError] = useState<string | null>(null);
   const [biometricReady, setBiometricReady] = useState(false);
   const [showReset, setShowReset] = useState(false);
-  const method: VaultAuthMethod = (() => {
-    if (typeof window === "undefined") return "pin";
-    try {
-      const raw = window.localStorage.getItem("gf.vault.credential");
-      const parsed = raw ? (JSON.parse(raw) as { method?: VaultAuthMethod }) : null;
-      return parsed?.method ?? "pin";
-    } catch {
-      return "pin";
-    }
-  })();
+  const [attempts, setAttempts] = useState(0);
+  const method: VaultAuthMethod = useMemo(() => getVaultMethod() ?? "pin", []);
 
   useEffect(() => {
     (async () => {
@@ -478,19 +562,28 @@ function LockScreen({ onUnlocked, onReset }: { onUnlocked: () => void; onReset: 
     })();
   }, []);
 
-  const submit = async () => {
-    if (busy || !secret) return;
-    setBusy(true);
-    setError(null);
-    const ok = await verifySecret(secret);
-    setBusy(false);
-    if (!ok) {
-      setError("Code incorrect");
-      setSecret("");
-      return;
-    }
-    onUnlocked();
-  };
+  const attempt = useCallback(
+    async (value: string) => {
+      if (busy || !value) return;
+      setBusy(true);
+      setError(null);
+      const ok = await verifySecret(value);
+      setBusy(false);
+      if (!ok) {
+        setAttempts((n) => n + 1);
+        setError(method === "pattern" ? "Schéma incorrect" : "Code incorrect");
+        setSecret("");
+        try {
+          navigator.vibrate?.([12, 60, 12]);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      onUnlocked();
+    },
+    [busy, method, onUnlocked],
+  );
 
   const tryBiometric = async () => {
     const ok = await verifyBiometric();
@@ -499,47 +592,70 @@ function LockScreen({ onUnlocked, onReset }: { onUnlocked: () => void; onReset: 
   };
 
   return (
-    <AppShell>
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+    <VaultFullScreen>
+      <div className="flex min-h-full flex-col items-center justify-center gap-5 py-6 text-center">
         <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/12 text-primary shadow-xs">
           <Lock className="h-6 w-6" />
         </span>
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Coffre-fort</h1>
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            Saisissez votre {method === "pin" ? "code PIN" : "mot de passe"} pour déverrouiller.
+          <h1 className="font-display text-[22px] font-bold tracking-tight text-foreground">
+            Coffre-fort verrouillé
+          </h1>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            {method === "pattern"
+              ? "Dessinez votre schéma pour déverrouiller."
+              : `Saisissez votre ${methodLabel(method)} pour déverrouiller.`}
           </p>
         </div>
 
-        <div className="w-full max-w-xs">
-          <SecretInput
-            method={method}
-            value={secret}
-            onChange={setSecret}
-            autoFocus
-            placeholder={method === "pin" ? "••••" : "••••••"}
-          />
-          {error ? <p className="mt-2 text-[11px] text-red-400">{error}</p> : null}
-          <div className="mt-3 flex flex-col gap-2">
-            <PrimaryButton onClick={submit} disabled={busy || !secret}>
-              {busy ? "Vérification…" : "Déverrouiller"}
-            </PrimaryButton>
-            {biometricReady ? (
-              <button
-                type="button"
-                onClick={tryBiometric}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-[12px] text-muted-foreground hover:text-foreground"
-              >
-                <Fingerprint className="h-4 w-4" /> Utiliser la biométrie
-              </button>
-            ) : null}
+        {method === "pattern" ? (
+          <div className="flex flex-col items-center gap-3">
+            <PatternLock
+              onComplete={(v) => void attempt(v)}
+              disabled={busy}
+              error={!!error}
+              size={272}
+            />
+            {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
           </div>
-        </div>
+        ) : (
+          <div className="w-full max-w-xs">
+            <SecretInput
+              method={method}
+              value={secret}
+              onChange={setSecret}
+              autoFocus
+              placeholder={method === "pin" ? "••••" : "••••••"}
+            />
+            {error ? <p className="mt-2 text-[12px] text-destructive">{error}</p> : null}
+            <div className="mt-3">
+              <PrimaryButton onClick={() => void attempt(secret)} disabled={busy || !secret}>
+                {busy ? "Vérification…" : "Déverrouiller"}
+              </PrimaryButton>
+            </div>
+          </div>
+        )}
+
+        {biometricReady ? (
+          <button
+            type="button"
+            onClick={tryBiometric}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+          >
+            <Fingerprint className="h-4 w-4" /> Utiliser la biométrie
+          </button>
+        ) : null}
+
+        {attempts >= 3 ? (
+          <p className="text-[11px] text-muted-foreground">
+            {attempts} tentatives échouées. Prenez votre temps — aucune donnée n'est envoyée.
+          </p>
+        ) : null}
 
         <button
           type="button"
           onClick={() => setShowReset(true)}
-          className="mt-4 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          className="mt-2 text-[11.5px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
         >
           J'ai oublié mon code
         </button>
@@ -565,7 +681,7 @@ function LockScreen({ onUnlocked, onReset }: { onUnlocked: () => void; onReset: 
           }}
         />
       </div>
-    </AppShell>
+    </VaultFullScreen>
   );
 }
 
