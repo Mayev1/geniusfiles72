@@ -415,10 +415,10 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+      className={`gf-press flex h-10 shrink-0 items-center gap-1.5 rounded-2xl px-3.5 text-[12.5px] font-medium transition-colors ${
         active
-          ? "border-primary/60 bg-primary/15 text-primary"
-          : "border-border bg-secondary/60 text-muted-foreground"
+          ? "bg-primary-softer text-primary"
+          : "bg-surface-2 text-muted-foreground"
       }`}
     >
       {children}
