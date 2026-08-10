@@ -25,6 +25,7 @@ export type { PickAccept, PickedDetail };
 
 export function FileSourcePicker({
   open,
+  title,
   extensions,
   multi,
   accept = "files",
@@ -32,7 +33,7 @@ export function FileSourcePicker({
   onConfirm,
 }: {
   open: boolean;
-  /** Conservé pour compatibilité ; aucun en-tête de sélection n'est affiché. */
+  /** Message affiché en tête du mode sélection (« Sélectionnez les PDF… »). */
   title?: string;
   /** Extensions minuscules sans point, ex. ["pdf"]. */
   extensions: string[];
@@ -64,6 +65,7 @@ export function FileSourcePicker({
     void requestPick({
       accept,
       multi,
+      title,
       extensions: extKey ? extKey.split(",") : [],
     }).then((result) => {
       started.current = false;
@@ -77,7 +79,9 @@ export function FileSourcePicker({
         result,
       );
     });
-  }, [open, accept, multi, extKey]);
+    /* `title` figure dans les dépendances par correction : la garde
+       `started` empêche toute relance de la session en cours. */
+  }, [open, accept, multi, extKey, title]);
 
   return null;
 }

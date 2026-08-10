@@ -31,7 +31,7 @@ export function PickBar({ request }: { request: PickRequest }) {
       <div aria-hidden className="h-24 w-full shrink-0" />
       <Portal>
         <nav
-          className="fixed inset-x-0 z-[60] mx-auto max-w-[560px] px-3 pl-safe pr-safe"
+          className="fixed inset-x-0 z-[3600] mx-auto max-w-[560px] px-3 pl-safe pr-safe"
           aria-label="Validation de la sélection"
           style={{
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
@@ -61,7 +61,7 @@ export function PickBar({ request }: { request: PickRequest }) {
               className="flex h-11 items-center gap-1.5 rounded-full bg-primary px-5 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-opacity disabled:opacity-40"
             >
               <Check className="h-[18px] w-[18px]" strokeWidth={2.4} />
-              Valider
+              {count > 0 && request.multi ? `Valider (${count})` : "Valider"}
             </button>
           </div>
         </nav>

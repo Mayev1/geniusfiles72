@@ -37,6 +37,10 @@ export function useAppNavigate(): (opts: AppNavigateOptions) => Promise<void> {
           pushPickScreen({ kind: "search" });
           return;
         }
+        if (to === "/applications") {
+          pushPickScreen({ kind: "apps" });
+          return;
+        }
         if (to === "/fichiers-recents") {
           pushPickScreen({ kind: "recents" });
           return;
