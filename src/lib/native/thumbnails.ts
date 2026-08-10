@@ -174,10 +174,17 @@ export async function resolveThumbnail(absolutePath: string, size = 320): Promis
   const p = plugin();
   if (!p?.getOrCreateThumbnail) return null;
 
+  /* Un appel direct (lecteur, préchargement voisin) n'est jamais annulé :
+     seul un élément qui avait été « retenu » par une ligne visible puis
+     relâché (sorti de l'écran) abandonne sa place dans la file. Sans cette
+     distinction, les miniatures demandées hors liste n'étaient jamais
+     générées. */
+  const retainedAtStart = (wanted.get(key) ?? 0) > 0;
+
   const task = schedule(async () => {
     try {
       // Sortie d'écran pendant l'attente : on abandonne sans décoder.
-      if ((wanted.get(key) ?? 0) <= 0) return null;
+      if (retainedAtStart && (wanted.get(key) ?? 0) <= 0) return null;
       const ret = await p.getOrCreateThumbnail!({ path: absolutePath, size });
       const url = convertFileSrc(ret.cachePath);
       remember(key, url);

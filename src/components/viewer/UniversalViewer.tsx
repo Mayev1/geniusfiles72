@@ -119,6 +119,48 @@ export function UniversalViewer({
      affichés dans le menu du lecteur : aucune barre flottante en bas. */
   const [tools, setTools] = useState<ReaderTool[]>([]);
 
+  /* ─────────────────────────────────────────────────────────────
+     Fratrie du même type — calculée UNE SEULE FOIS par liste/type.
+
+     Sur une catégorie globale (100 000+ fichiers), refaire `filter` et
+     `indexOf` à chaque rendu bloquait le thread principal : chaque appui
+     sur lecture/pause, chaque seconde de lecture et chaque ouverture de
+     playlist relançaient des parcours O(n). Le tableau et les tables de
+     correspondance rel↔abs sont désormais mémoïsés.
+     ───────────────────────────────────────────────────────────── */
+  const { siblings, relOf, absOf } = useMemo(() => {
+    const list: FileEntry[] = [];
+    const rel = new Map<FileEntry, number>();
+    const abs: number[] = [];
+    if (kind !== "none") {
+      for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        if (viewerKindOf(e) !== kind) continue;
+        rel.set(e, list.length);
+        abs.push(i);
+        list.push(e);
+      }
+    }
+    return { siblings: list, relOf: rel, absOf: abs };
+  }, [entries, kind]);
+
+  const relIndexOf = useCallback((e: FileEntry | null) => (e ? (relOf.get(e) ?? -1) : -1), [relOf]);
+  const toAbsIndex = useCallback((rel: number) => absOf[rel] ?? 0, [absOf]);
+
+  /* `parentOf` est souvent une lambda recréée à chaque rendu : on la lit via
+     une ref pour ne jamais recartographier 100 000 entrées inutilement. */
+  const parentOfRef = useRef(parentOf);
+  useEffect(() => {
+    parentOfRef.current = parentOf;
+  });
+  const siblingParents = useMemo(
+    () =>
+      kind === "audio" && parentOfRef.current
+        ? siblings.map((e) => parentOfRef.current?.(e) ?? null)
+        : undefined,
+    [siblings, kind],
+  );
+
   // Les lecteurs de documents (PDF, Office, texte, ebook, fallback) gardent
   // une chrome permanente et opaque ; les médias immersifs (image / vidéo)
   // ont leurs propres lecteurs dédiés avec auto-masquage.
@@ -191,13 +233,30 @@ export function UniversalViewer({
     });
   }, [open, parent, entries, index, kind]);
 
+  /* ---- Passage de relais audio (hors rendu) ----------------------------
+     La file est confiée au lecteur global dans un effet : la lecture démarre
+     immédiatement, sans recalcul de liste ni travail lourd pendant le rendu. */
+  const audioHandoff = open && !!parent && !!entry && kind === "audio";
+  const audioRel = kind === "audio" ? relIndexOf(entry) : -1;
+  useEffect(() => {
+    if (!audioHandoff || !parent) return;
+    try {
+      audioStore.playQueue(parent, siblings, Math.max(0, audioRel), siblingParents ?? undefined);
+      audioStore.openUI();
+    } catch {
+      /* ignore */
+    }
+    closeRef.current();
+  }, [audioHandoff, parent, siblings, siblingParents, audioRel]);
+
   if (!open || !entry || !parent) return null;
+  if (kind === "audio") return null;
 
   // Dedicated full-screen premium players for audio and video kinds.
   // Images use the premium universal image player, whatever the entry point.
   if (kind === "image") {
-    const siblings = entries.filter((e) => viewerKindOf(e) === "image");
-    const rel = Math.max(0, siblings.indexOf(entry));
+    const rel = Math.max(0, relIndexOf(entry));
+
     const fireI = (a: ViewerAction) => {
       setMenuOpen(false);
       onAction(entry, a);
@@ -208,7 +267,7 @@ export function UniversalViewer({
           parent={parent}
           entries={siblings}
           index={rel}
-          onIndexChange={(i: number) => onIndexChange(entries.indexOf(siblings[i]))}
+          onIndexChange={(i: number) => onIndexChange(toAbsIndex(i))}
           onClose={onClose}
           onMenu={() => setMenuOpen(true)}
           onShare={() => fireI("share")}
@@ -249,40 +308,15 @@ export function UniversalViewer({
     );
   }
 
-  if (kind === "audio" || kind === "video") {
-    const siblings = entries.filter((e) => viewerKindOf(e) === kind);
-    const rel = siblings.indexOf(entry);
-    const setRel = (i: number) => onIndexChange(entries.indexOf(siblings[i]));
+  if (kind === "video") {
+    const rel = relIndexOf(entry);
+    const setRel = (i: number) => onIndexChange(toAbsIndex(i));
     const fireP = (a: ViewerAction) => {
       setMenuOpen(false);
       onAction(entry, a);
     };
-    if (kind === "audio") {
-      // Hand playback off to the global audio store — the persistent player
-      // UI is mounted by AppShell so audio survives closing this viewer,
-      // navigating away, or backgrounding the app.
-      try {
-        audioStore.playQueue(
-          parent,
-          siblings,
-          Math.max(0, rel),
-          parentOf ? siblings.map((e) => parentOf(e)) : undefined,
-        );
-        audioStore.openUI();
-      } catch {
-        /* never throw during render */
-      }
-      // Close this dialog on next tick — the AudioPlayer overlay takes over.
-      queueMicrotask(() => {
-        try {
-          onClose();
-        } catch {
-          /* ignore */
-        }
-      });
-      return null;
-    }
     const Player = VideoPlayer;
+
     return (
       <>
         <Player
@@ -320,9 +354,8 @@ export function UniversalViewer({
 
   const src = sourceUrlOf(parent, entry);
   const key = entryKey(parent, entry);
-  const previewableSiblings = entries.filter((e) => viewerKindOf(e) === kind);
-  const relIndex = previewableSiblings.indexOf(entry);
-  const previewCount = previewableSiblings.length;
+  const relIndex = relIndexOf(entry);
+  const previewCount = siblings.length;
 
   const fire = (a: ViewerAction) => {
     setMenuOpen(false);

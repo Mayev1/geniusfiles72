@@ -110,12 +110,20 @@ export function ScrollFeel() {
       decided = false;
       if (document.body.style.overflow === "hidden") return;
       if (isBlocked(e.target)) return;
-      const host = document.querySelector<HTMLElement>("main > .gf-page");
+      let host = document.querySelector<HTMLElement>("main > .gf-page");
       if (!host) return;
+      /* Certaines pages (Accueil) enveloppent leur contenu dans un conteneur
+         intermédiaire : l'en-tête collant n'est alors PAS un enfant direct de
+         `.gf-page`. On descend jusqu'au conteneur qui possède réellement
+         l'en-tête, sans quoi le header serait tiré avec le contenu. */
+      if (!host.querySelector(":scope > header")) {
+        const inner = host.firstElementChild;
+        if (inner instanceof HTMLElement && inner.querySelector(":scope > header")) host = inner;
+      }
       page = host;
       startY = e.touches[0].clientY;
       startX = e.touches[0].clientX;
-      const header = host.querySelector<HTMLElement>(":scope > header");
+      const header = page.querySelector<HTMLElement>(":scope > header");
       baseTop = header ? header.getBoundingClientRect().bottom - 42 : 12;
       const b = badge();
       if (b) {
