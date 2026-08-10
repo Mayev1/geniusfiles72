@@ -39,6 +39,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
       "/outils",
       "/corbeille",
       "/nettoyeur",
+      "/applications",
+      "/transfert",
     ].some((p) => pathname.startsWith(p));
   /* La conversation gère elle-même sa hauteur et son espace bas (nav + clavier). */
   const isChat = pathname.startsWith("/assistant");

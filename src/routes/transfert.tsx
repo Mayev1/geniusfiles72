@@ -34,7 +34,8 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/navigation/BackButton";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+
+import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QrDisplay } from "@/components/transfer/QrDisplay";
 import { QrScanner } from "@/components/transfer/QrScanner";
@@ -99,6 +100,16 @@ export const Route = createFileRoute("/transfert")({
 
 type Screen = { kind: "home" } | { kind: "send" } | { kind: "receive" } | { kind: "history" };
 
+const SCREEN_META: Record<Screen["kind"], { title: string; subtitle: string }> = {
+  home: {
+    title: "Transfert",
+    subtitle: "Envoyez et recevez sans Internet, d'un appareil à l'autre.",
+  },
+  send: { title: "Envoyer", subtitle: "Choisissez vos fichiers, un code apparaîtra." },
+  receive: { title: "Recevoir", subtitle: "Scannez le code de l'autre appareil." },
+  history: { title: "Historique", subtitle: "Vos envois et réceptions récents." },
+};
+
 function TransfertRoute() {
   const [screen, setScreen] = useState<Screen>({ kind: "home" });
 
@@ -113,28 +124,30 @@ function TransfertRoute() {
     BACK_PRIORITY.page,
   );
 
+  const meta = SCREEN_META[screen.kind];
+
   return (
     <AppShell>
-      <div className="flex items-center gap-2 pb-2">
-        <BackButton
-          size={20}
-          className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        />
-        <SectionHeader
-          title={
-            screen.kind === "send"
-              ? "Envoyer"
-              : screen.kind === "receive"
-                ? "Recevoir"
-                : screen.kind === "history"
-                  ? "Historique"
-                  : "Transfert entre appareils"
-          }
-          hint={screen.kind === "home" ? "Rapide, hors ligne, sans configuration." : undefined}
-        />
-      </div>
+      <PageHeader
+        title={meta.title}
+        subtitle={meta.subtitle}
+        leading={
+          screen.kind === "home" ? (
+            <BackButton className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground" />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setScreen({ kind: "home" })}
+              aria-label="Retour au transfert"
+              className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-[18px] w-[18px]" />
+            </button>
+          )
+        }
+      />
 
-      <div key={screen.kind} className="animate-fade-in">
+      <div key={screen.kind} className="animate-fade-in pt-3">
         {screen.kind === "home" ? (
           <HomeScreen onSelect={(k) => setScreen({ kind: k })} />
         ) : screen.kind === "send" ? (
@@ -154,47 +167,52 @@ function TransfertRoute() {
 /* ------------------------------------------------------------------ */
 
 function HomeScreen({ onSelect }: { onSelect: (k: "send" | "receive" | "history") => void }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const refresh = () => setCount(listHistory().length);
+    refresh();
+    return subscribeHistory(refresh);
+  }, []);
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
         <BigAction
           icon={<Send className="h-6 w-6" />}
-          title="Envoyer des fichiers"
-          hint="Choisissez vos fichiers, un code apparaîtra."
+          title="Envoyer"
+          hint="Partager mes fichiers"
           onClick={() => onSelect("send")}
         />
         <BigAction
           icon={<RadioTower className="h-6 w-6" />}
-          title="Recevoir des fichiers"
-          hint="Scannez un code ou attendez une demande."
+          title="Recevoir"
+          hint="Attendre un envoi"
           onClick={() => onSelect("receive")}
         />
       </div>
 
       <button
         onClick={() => onSelect("history")}
-        className="card-surface flex w-full items-center gap-3 p-3 text-left transition-transform active:scale-[0.98]"
+        className="gf-card gf-press flex w-full items-center gap-3 p-3 text-left"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-primary">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-primary">
           <History className="h-5 w-5" />
         </span>
-        <div>
-          <p className="text-sm font-medium">Historique</p>
-          <p className="text-[11px] text-muted-foreground">
-            Retrouvez vos envois et réceptions récents.
+        <div className="min-w-0 flex-1">
+          <p className="text-[14.5px] font-semibold">Historique</p>
+          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+            {count === 0
+              ? "Aucun transfert pour le moment"
+              : `${count} transfert${count > 1 ? "s" : ""} enregistré${count > 1 ? "s" : ""}`}
           </p>
         </div>
+        <ArrowLeft className="h-4 w-4 shrink-0 rotate-180 text-muted-foreground" />
       </button>
 
-      <div className="card-surface space-y-2 p-3">
-        <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
-          <Sparkles className="h-3.5 w-3.5" /> Fonctionne hors ligne
-        </p>
-        <p className="text-[12px] text-muted-foreground">
-          GeniusFiles choisit automatiquement la meilleure façon de se connecter à l'autre appareil.
-          Aucune configuration technique n'est nécessaire.
-        </p>
-      </div>
+      <p className="flex items-start gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-[12.5px] leading-snug text-muted-foreground">
+        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <span>Fonctionne hors ligne : la meilleure connexion est choisie automatiquement.</span>
+      </p>
     </div>
   );
 }
@@ -213,14 +231,14 @@ function BigAction({
   return (
     <button
       onClick={onClick}
-      className="card-surface flex flex-col items-start gap-2 p-4 text-left transition-transform active:scale-[0.98]"
+      className="gf-card gf-press flex min-h-[132px] flex-col items-start justify-between gap-3 p-4 text-left"
     >
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-softer text-primary">
         {icon}
       </span>
-      <div>
-        <p className="text-base font-semibold">{title}</p>
-        <p className="text-[12px] text-muted-foreground">{hint}</p>
+      <div className="min-w-0">
+        <p className="font-display text-[18px] font-bold leading-tight">{title}</p>
+        <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">{hint}</p>
       </div>
     </button>
   );
@@ -1517,23 +1535,23 @@ function HistoryScreen() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="relative min-w-0">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un appareil…"
-            className="w-full rounded-full bg-secondary/60 py-2 pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground"
+            className="h-12 w-full rounded-2xl bg-surface-2 pl-11 pr-3 text-[14px] outline-none ring-1 ring-inset ring-border/60 placeholder:text-muted-foreground focus:ring-primary/50"
           />
         </div>
         {entries.length ? (
           <button
             onClick={() => setConfirmClear(true)}
-            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="gf-press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground"
             aria-label="Vider l'historique"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-[18px] w-[18px]" />
           </button>
         ) : null}
       </div>
@@ -1541,50 +1559,59 @@ function HistoryScreen() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={History}
-          title="Aucun transfert"
-          description="Vos envois et réceptions apparaîtront ici."
+          title={query ? "Aucun résultat" : "Aucun transfert"}
+          description={
+            query
+              ? "Aucun appareil ne correspond à cette recherche."
+              : "Vos envois et réceptions apparaîtront ici."
+          }
         />
       ) : (
         <ul className="space-y-2">
           {filtered.map((e) => (
             <li key={e.id}>
-              <div className="card-surface flex items-start gap-3 p-3">
+              <div className="gf-card flex items-start gap-3 p-3">
                 <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
                     e.status === "success"
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary-softer text-primary"
                       : e.status === "cancelled"
-                        ? "bg-secondary text-muted-foreground"
+                        ? "bg-surface-2 text-muted-foreground"
                         : "bg-destructive/10 text-destructive"
                   }`}
                 >
                   {e.status === "success" ? (
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle2 className="h-5 w-5" />
                   ) : e.status === "cancelled" ? (
-                    <Square className="h-4 w-4" />
+                    <Square className="h-5 w-5" />
                   ) : (
-                    <XCircle className="h-4 w-4" />
+                    <XCircle className="h-5 w-5" />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
+                  <p className="truncate text-[14.5px] font-semibold">
                     {e.role === "sender" ? "Envoyé à " : "Reçu de "}
                     {e.peerName}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {e.filesCount} fichiers · {formatSize(e.totalBytes)} ·{" "}
-                    {formatDuration(Math.max(1, Math.round(e.durationMs / 1000)))}
+                  <p className="mt-0.5 text-[12px] text-muted-foreground">
+                    {e.filesCount} fichier{e.filesCount > 1 ? "s" : ""} · {formatSize(e.totalBytes)}{" "}
+                    · {formatDuration(Math.max(1, Math.round(e.durationMs / 1000)))}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {new Date(e.endedAt).toLocaleString()}
+                  <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                    {new Date(e.endedAt).toLocaleString("fr-FR")}
+                    {e.status === "success"
+                      ? ""
+                      : e.status === "cancelled"
+                        ? " · Annulé"
+                        : " · Échec"}
                   </p>
                 </div>
                 <button
                   onClick={() => removeHistoryEntry(e.id)}
-                  className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label="Supprimer"
+                  className="gf-press flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground"
+                  aria-label="Supprimer de l'historique"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </li>

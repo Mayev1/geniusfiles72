@@ -46,6 +46,7 @@ import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/navigation/BackButton";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useConfirm } from "@/components/common/useConfirm";
 import { countLabel } from "@/lib/copy";
@@ -241,28 +242,29 @@ function AppsPage() {
 
   return (
     <AppShell>
-      <div className="flex items-center gap-2">
-        <BackButton
-          size={20}
-          className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-        />
-        <div className="flex-1">
-          <h1 className="text-[15px] font-semibold tracking-tight">Applications</h1>
-          <p className="text-[11px] text-muted-foreground">
-            {loading
-              ? "Analyse de vos applications en cours…"
-              : `${countLabel(stats.total, "application")} · ${formatSize(stats.totalBytes)} occupés`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Actualiser"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
-      </div>
+      <PageHeader
+        title="Applications"
+        subtitle={
+          loading
+            ? "Analyse de vos applications…"
+            : `${countLabel(stats.total, "application")} · ${formatSize(stats.totalBytes)}`
+        }
+        leading={
+          <BackButton className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground" />
+        }
+        action={
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="gf-press flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground"
+            aria-label="Actualiser la liste"
+          >
+            <RefreshCw className={`h-[18px] w-[18px] ${loading ? "animate-spin" : ""}`} />
+          </button>
+        }
+      />
+
+      <StatsBlock stats={stats} usageAvailable={usageAvailable} />
 
       {showUsageGate ? (
         <UsageAccessGate
@@ -273,68 +275,70 @@ function AppsPage() {
         />
       ) : null}
 
-      <StatsBlock stats={stats} />
-
-      <SectionHeader title="Toutes les applications" hint="Recherche et filtres" />
+      <SectionHeader title="Toutes les applications" />
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher par nom…"
-          className="w-full rounded-xl border border-border bg-secondary/60 py-2 pl-9 pr-9 text-sm outline-none focus:border-primary/50"
+          placeholder="Rechercher une application…"
+          className="h-12 w-full rounded-2xl bg-surface-2 pl-11 pr-11 text-[14px] outline-none ring-1 ring-inset ring-border/60 focus:ring-primary/50"
         />
         {query ? (
           <button
             type="button"
-            aria-label="Effacer"
+            aria-label="Effacer la recherche"
             onClick={() => setQuery("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground"
+            className="gf-press absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         ) : null}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <div className="flex flex-1 gap-1 overflow-x-auto scrollbar-hidden">
+      <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="flex min-w-0 gap-1.5 overflow-x-auto scrollbar-hidden">
           <Chip active={filter === "user"} onClick={() => setFilter("user")}>
-            <User className="h-3.5 w-3.5" /> Utilisateur
+            <User className="h-4 w-4" /> Utilisateur
           </Chip>
           <Chip active={filter === "system"} onClick={() => setFilter("system")}>
-            <Cpu className="h-3.5 w-3.5" /> Système
+            <Cpu className="h-4 w-4" /> Système
           </Chip>
           <Chip active={filter === "all"} onClick={() => setFilter("all")}>
             Toutes
           </Chip>
         </div>
-        <button
-          type="button"
-          onClick={() => setSortSheet(true)}
-          className="flex items-center gap-1 rounded-full border border-border bg-secondary/60 px-2.5 py-1 text-[11px]"
-        >
-          <ArrowUpDown className="h-3.5 w-3.5" /> {SORT_LABEL[sort]}
-        </button>
-        <button
-          type="button"
-          onClick={() => setLayout((l) => (l === "list" ? "grid" : "list"))}
-          className="rounded-full border border-border bg-secondary/60 p-1.5"
-          aria-label="Changer d'affichage"
-        >
-          {layout === "list" ? (
-            <Grid3x3 className="h-3.5 w-3.5" />
-          ) : (
-            <LayoutList className="h-3.5 w-3.5" />
-          )}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSortSheet(true)}
+            className="gf-press flex h-10 items-center gap-1.5 rounded-2xl bg-surface-2 px-3 text-[12.5px] font-medium text-muted-foreground"
+            aria-label={`Trier : ${SORT_LABEL[sort]}`}
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            <span className="hidden xs:inline">{SORT_LABEL[sort]}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLayout((l) => (l === "list" ? "grid" : "list"))}
+            className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground"
+            aria-label={layout === "list" ? "Affichage en grille" : "Affichage en liste"}
+          >
+            {layout === "list" ? (
+              <Grid3x3 className="h-4 w-4" />
+            ) : (
+              <LayoutList className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="mt-3">
         {loading && apps.length === 0 ? (
           <div className="grid gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-xl bg-secondary/50" />
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface-2" />
             ))}
           </div>
         ) : showPluginError && apps.length === 0 ? (
@@ -410,10 +414,8 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
-        active
-          ? "border-primary/60 bg-primary/15 text-primary"
-          : "border-border bg-secondary/60 text-muted-foreground"
+      className={`gf-press flex h-10 shrink-0 items-center gap-1.5 rounded-2xl px-3.5 text-[12.5px] font-medium transition-colors ${
+        active ? "bg-primary-softer text-primary" : "bg-surface-2 text-muted-foreground"
       }`}
     >
       {children}
@@ -433,42 +435,35 @@ function UsageAccessGate({
   partial: boolean;
 }) {
   return (
-    <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+    <div className="gf-card mt-3 p-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-          <Shield className="h-4 w-4" />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-softer text-primary">
+          <Shield className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Autoriser l'accès aux données d'utilisation</p>
-          <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="text-[15px] font-semibold leading-snug">Afficher les tailles réelles</p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
             {partial
-              ? "GeniusFiles affiche vos applications, mais a besoin de cette autorisation Android pour connaître la taille réelle (code, données, cache) et la dernière utilisation de chaque application."
-              : "Cette autorisation Android permet à GeniusFiles de calculer la taille réelle de chaque application, sa dernière utilisation, et de repérer les applications rarement ouvertes."}
+              ? "Vos applications sont listées. L'accès Android aux données d'utilisation ajoute la taille réelle (code, données, cache) et la dernière ouverture."
+              : "L'accès Android aux données d'utilisation permet de calculer la taille réelle de chaque application et de repérer celles que vous n'ouvrez plus."}
           </p>
-          <ol className="mt-2 space-y-0.5 text-[11.5px] text-muted-foreground">
-            <li>1. Appuyez sur « Ouvrir les paramètres ».</li>
-            <li>2. Sélectionnez « GeniusFiles ».</li>
-            <li>3. Activez « Autoriser l'accès aux données d'utilisation ».</li>
-          </ol>
         </div>
       </div>
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={onGrant}
-          disabled={requesting}
-          className="flex-1 rounded-xl bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground shadow-elevated transition-transform active:scale-[0.98] disabled:opacity-60"
-        >
-          {requesting ? "Ouverture…" : "Ouvrir les paramètres"}
-        </button>
-        <button
-          type="button"
-          onClick={onRecheck}
-          className="inline-flex items-center gap-1 rounded-xl border border-border bg-secondary/60 px-3 py-2 text-[12px] font-medium text-muted-foreground hover:text-foreground"
-        >
-          <RefreshCw className="h-3.5 w-3.5" /> Réessayer
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onGrant}
+        disabled={requesting}
+        className="gf-press mt-3 h-12 w-full rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground shadow-elevated disabled:opacity-60"
+      >
+        {requesting ? "Ouverture…" : "Ouvrir les paramètres"}
+      </button>
+      <button
+        type="button"
+        onClick={onRecheck}
+        className="gf-press mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-2xl text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
+      >
+        <RefreshCw className="h-4 w-4" /> J'ai accordé l'autorisation — réessayer
+      </button>
     </div>
   );
 }
@@ -502,20 +497,21 @@ function AppRow({ app, onOpen }: { app: InstalledApp; onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="card-surface flex w-full items-center gap-3 p-2.5 text-left active:scale-[0.99]"
+      className="gf-card gf-press flex w-full items-center gap-3 p-3 text-left"
     >
-      <AppIconEl app={app} />
+      <AppIconEl app={app} size={44} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-medium">{app.label}</p>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className="truncate text-[14.5px] font-semibold">{app.label}</p>
           {app.isSystem ? (
-            <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
+            <span className="shrink-0 rounded-full bg-surface-3 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
               Système
             </span>
           ) : null}
         </div>
-        <p className="truncate text-[11px] text-muted-foreground">
-          {app.versionName || "—"} · {formatSize(size)}
+        <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+          {formatSize(size)}
+          {app.versionName ? ` · v${app.versionName}` : ""}
         </p>
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -542,27 +538,60 @@ function AppTile({ app, onOpen }: { app: InstalledApp; onOpen: () => void }) {
 /* Stats + recommendations                                             */
 /* ------------------------------------------------------------------ */
 
-function StatsBlock({ stats }: { stats: ReturnType<typeof computeStats> }) {
+function StatsBlock({
+  stats,
+  usageAvailable,
+}: {
+  stats: ReturnType<typeof computeStats>;
+  usageAvailable: boolean;
+}) {
   const total = Math.max(1, stats.totalBytes);
-  const userPct = Math.round((stats.userBytes / total) * 100);
+  const userPct = Math.min(100, Math.round((stats.userBytes / total) * 100));
   return (
-    <div className="mt-3 grid grid-cols-2 gap-2">
-      <div className="card-surface p-3">
-        <p className="text-[11px] text-muted-foreground">Applications</p>
-        <p className="mt-1 text-lg font-semibold">{stats.total}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {stats.user} utilisateur · {stats.system} système
-        </p>
-      </div>
-      <div className="card-surface p-3">
-        <p className="text-[11px] text-muted-foreground">Espace occupé</p>
-        <p className="mt-1 text-lg font-semibold">{formatSize(stats.totalBytes)}</p>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
-          <div className="h-full bg-primary" style={{ width: `${Math.min(100, userPct)}%` }} />
+    <div className="gf-card mt-3 p-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Espace occupé
+          </p>
+          <p className="mt-1.5 truncate font-display text-[32px] font-bold leading-none text-primary">
+            {formatSize(stats.totalBytes)}
+          </p>
         </div>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {formatSize(stats.userBytes)} utilisateur
-        </p>
+        <span className="shrink-0 rounded-full bg-primary-softer px-2.5 py-1 text-[11px] font-semibold text-primary">
+          {stats.total} au total
+        </span>
+      </div>
+
+      <div className="mt-3.5 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3">
+        <span className="h-full bg-primary" style={{ width: `${userPct}%` }} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+          <span className="truncate">{stats.user} utilisateur</span>
+          <span className="shrink-0 font-semibold text-foreground">
+            {formatSize(stats.userBytes)}
+          </span>
+        </span>
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-surface-3" />
+          <span className="truncate">{stats.system} système</span>
+          <span className="shrink-0 font-semibold text-foreground">
+            {formatSize(Math.max(0, stats.totalBytes - stats.userBytes))}
+          </span>
+        </span>
+      </div>
+
+      <div className="mt-3.5 flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-[12px] leading-snug text-muted-foreground">
+        <Shield
+          className={`h-4 w-4 shrink-0 ${usageAvailable ? "text-primary" : "text-muted-foreground"}`}
+        />
+        <span className="min-w-0">
+          {usageAvailable
+            ? "Tailles réelles et dernière utilisation disponibles."
+            : "Tailles estimées : l'accès aux données d'utilisation n'est pas encore accordé."}
+        </span>
       </div>
     </div>
   );
