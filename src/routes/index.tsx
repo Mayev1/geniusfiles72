@@ -37,7 +37,7 @@ import { RecentFilesSection } from "@/components/home/RecentFilesSection";
 import { formatSize } from "@/lib/files/format";
 import { buildRecommendations, type Recommendation } from "@/lib/files/recommendations";
 import type { ScanResult } from "@/lib/files/analyzer";
-import { subscribeStorageStats } from "@/lib/index/storage-stats";
+import { refreshStorageStats, subscribeStorageStats } from "@/lib/index/storage-stats";
 import { recordSnapshot, loadSnapshots, type FreeSnapshot } from "@/lib/files/snapshots";
 import { usageTrash, autoPurgeTrash } from "@/lib/files/trash";
 import { ResumeBanner } from "@/components/jobs/ResumeBanner";
@@ -594,6 +594,9 @@ function FilesPage() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setReloadTick((t) => t + 1);
+    // Actualisation explicite : les tailles de catégories sont recalculées
+    // depuis le stockage réel (le cache n'est jamais une source périmée).
+    refreshStorageStats();
   }, []);
 
   /* Tirer pour actualiser : relit le dossier courant (racines, dossiers
@@ -1525,7 +1528,10 @@ function RootView({
     setGreeting(h < 6 ? "Bonne nuit" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir");
   }, []);
 
-  const cat = scan?.categories;
+  /* Tailles des tuiles : mêmes règles de catégorisation que les écrans de
+     catégorie (voir `category-rules.ts`) — jamais l'espace de stockage,
+     jamais une estimation. */
+  const kinds = scan?.kinds;
   const totalFiles = scan?.totalFiles ?? 0;
 
   type CatDef = {
@@ -1544,8 +1550,8 @@ function RootView({
       label: "Documents",
       icon: FileText,
       tint: "bg-blue-500/12 text-blue-600 dark:text-blue-400",
-      count: cat?.document.count,
-      bytes: cat?.document.bytes,
+      count: kinds?.documents.count,
+      bytes: kinds?.documents.bytes,
       onOpen: () => navigate({ to: "/categorie/$kind", params: { kind: "documents" } }),
     },
     {
@@ -1553,8 +1559,8 @@ function RootView({
       label: "Images",
       icon: ImageIcon,
       tint: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
-      count: cat?.image.count,
-      bytes: cat?.image.bytes,
+      count: kinds?.images.count,
+      bytes: kinds?.images.bytes,
       onOpen: () => navigate({ to: "/categorie/$kind", params: { kind: "images" } }),
     },
     {
@@ -1562,8 +1568,8 @@ function RootView({
       label: "Vidéos",
       icon: Film,
       tint: "bg-rose-500/12 text-rose-600 dark:text-rose-400",
-      count: cat?.video.count,
-      bytes: cat?.video.bytes,
+      count: kinds?.videos.count,
+      bytes: kinds?.videos.bytes,
       onOpen: () => navigate({ to: "/categorie/$kind", params: { kind: "videos" } }),
     },
     {
@@ -1571,8 +1577,8 @@ function RootView({
       label: "Musiques",
       icon: Music,
       tint: "bg-violet-500/12 text-violet-600 dark:text-violet-400",
-      count: cat?.audio.count,
-      bytes: cat?.audio.bytes,
+      count: kinds?.audio.count,
+      bytes: kinds?.audio.bytes,
       onOpen: () => navigate({ to: "/categorie/$kind", params: { kind: "audio" } }),
     },
     {

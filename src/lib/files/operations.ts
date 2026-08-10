@@ -543,6 +543,7 @@ async function runDelete(
           segments: parent.segments,
           name: e.name,
           isDirectory: e.isDirectory,
+          size: e.isDirectory ? undefined : (e.size ?? 0),
         });
       }
     }

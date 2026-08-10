@@ -22,7 +22,16 @@ export type FsPatchOp =
       size?: number;
       mtime?: number;
     }
-  | { op: "delete"; rootId: StorageRootId; segments: string[]; name: string; isDirectory?: boolean }
+  | {
+      op: "delete";
+      rootId: StorageRootId;
+      segments: string[];
+      name: string;
+      isDirectory?: boolean;
+      /** Taille réelle de l'élément supprimé (fichiers) — sert à décrémenter
+       *  exactement les totaux de catégorie sans relancer d'analyse. */
+      size?: number;
+    }
   | {
       op: "rename";
       rootId: StorageRootId;
