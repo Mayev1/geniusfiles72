@@ -67,6 +67,7 @@ export function VideoPlayer({
   onClose,
   onMenu,
   poster,
+  parentFor,
 }: {
   parent: PathRef;
   entries: FileEntry[];
@@ -75,8 +76,25 @@ export function VideoPlayer({
   onClose: () => void;
   onMenu: () => void;
   poster?: string;
+  /**
+   * Dossier réel d'une entrée de la file. Indispensable pour les listes
+   * agrégées (catégories, récents, recherche) : sans lui, les miniatures de
+   * la playlist seraient résolues dans le dossier de la vidéo en cours et
+   * n'existeraient donc pas pour les vidéos des autres dossiers.
+   */
+  parentFor?: (entry: FileEntry) => PathRef | null;
 }) {
   const entry = entries[index];
+  /* Lambda souvent recréée à chaque rendu : lue via une ref pour ne jamais
+     provoquer de recalcul en cascade sur des files de milliers de vidéos. */
+  const parentForRef = useRef(parentFor);
+  useEffect(() => {
+    parentForRef.current = parentFor;
+  });
+  const parentOfEntry = useCallback(
+    (e: FileEntry) => parentForRef.current?.(e) ?? parent,
+    [parent],
+  );
   const src = useMemo(() => (entry ? sourceUrlOf(parent, entry) : ""), [entry, parent]);
   const rKey = useMemo(() => (entry ? entryKey(parent, entry) : ""), [entry, parent]);
 
@@ -131,13 +149,15 @@ export function VideoPlayer({
   }, [absPath]);
 
   // Préchargement léger des voisins : miniature uniquement (aucun décodage
-  // vidéo supplémentaire, donc aucune surconsommation CPU/batterie).
+  // vidéo supplémentaire, donc aucune surconsommation CPU/batterie). Chaque
+  // voisin est résolu dans SON dossier réel, pas dans celui de la vidéo lue.
   useEffect(() => {
     for (const delta of [1, -1]) {
       const next = entries[index + delta];
-      if (next) void resolveThumbnail(absolutePathOf(parent, next), 640);
+      if (next) void resolveThumbnail(absolutePathOf(parentOfEntry(next), next), 640);
     }
-  }, [entries, index, parent]);
+  }, [entries, index, parentOfEntry]);
+
 
   // ---- Mode immersif ------------------------------------------------------
   useEffect(() => {
