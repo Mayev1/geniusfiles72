@@ -72,6 +72,10 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </div>
       </main>
       <PlayerHost />
+      {/* Sensation de défilement native : résistance de bord sur le seul
+          contenu + tirer pour actualiser (jamais en mode lecture). */}
+      {reader ? null : <ScrollFeel />}
+
       {/* Navigation verticale rapide : la fenêtre est le conteneur défilant
           de tous les écrans de listes. Masquée en mode lecture (le lecteur
           monte sa propre pastille sur son contenu) et en conversation. */}
