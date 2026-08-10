@@ -1,21 +1,26 @@
 /**
  * Page plein écran « Fichiers récents ».
  *
- * Affiche tous les fichiers utilisés durant les 48 dernières heures,
- * groupés par jour (Aujourd'hui / Hier), avec recherche instantanée et
- * exactement les mêmes actions que dans le gestionnaire de fichiers.
- * Les données proviennent du journal local : aucune analyse du stockage
- * n'est relancée, l'ouverture est instantanée.
+ * Véritable vue du gestionnaire de fichiers : mêmes composants
+ * (FilesTopBar, FileListView / FileGridView, SelectionBar,
+ * MoreActionsSheet…), mêmes gestes, mêmes actions et mêmes règles
+ * métier. Les fichiers proviennent réellement du stockage (dates
+ * d'ajout réelles) sur une fenêtre de 7 jours ; la liste connue
+ * s'affiche instantanément puis se rafraîchit en arrière-plan.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clock3, Search, X } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
-import { BackButton } from "@/components/navigation/BackButton";
+import { useAppBack } from "@/lib/navigation/use-app-back";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
-import { FileIcon } from "@/components/files/FileIcon";
+import { FilesTopBar } from "@/components/files/FilesTopBar";
+import { FileGridView, FileListView } from "@/components/files/FileList";
+import { SelectionBar } from "@/components/files/SelectionBar";
+import { MoreActionsSheet } from "@/components/files/MoreActionsSheet";
+import { buildMoreActions } from "@/lib/files/selection-actions";
 import { EntryActionSheet, type EntryAction } from "@/components/files/EntryActionSheet";
 import { ConfirmDialog, NamePrompt } from "@/components/files/BottomSheet";
 import { DestinationPicker } from "@/components/files/DestinationPicker";
@@ -24,12 +29,18 @@ import { ProgressDialog } from "@/components/files/ProgressDialog";
 import { startTransfer, cancelTransfer } from "@/lib/transfers/manager";
 import { useTransferTask } from "@/lib/transfers/useTransfers";
 import { UniversalViewer, type ViewerAction } from "@/components/viewer/UniversalViewer";
-import { canPreview } from "@/lib/viewer/kinds";
+import { IllustratedEmptyState } from "@/components/ui/IllustratedEmptyState";
+import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
 import { batchSummary, errorMessage } from "@/lib/errors/humanize";
 import { confirmCopy, progressLabel } from "@/lib/copy";
-import type { FileEntry, PathRef } from "@/lib/files/types";
+import { sortEntries } from "@/lib/files/sort";
+import { formatSize } from "@/lib/files/format";
+import { useSelectionSize } from "@/lib/files/selection-size";
+import { selectionKey, type SelectionItem } from "@/lib/files/selection-store";
+import { loadSort, loadView, saveSort, saveView } from "@/lib/files/preferences";
+import type { FileEntry, PathRef, SortKey, SortOrder, ViewMode } from "@/lib/files/types";
 import {
   createSignal,
   deleteEntries,
@@ -41,12 +52,12 @@ import {
   type OperationSignal,
   type ProgressEvent,
 } from "@/lib/files/operations";
-import { formatRecentClock, groupRecents } from "@/lib/recents/store";
+import { groupRecents } from "@/lib/recents/store";
 import {
-  addedAbsPath,
   addedId,
   addedLocationLabel,
   loadAddedWindow,
+  refreshAddedFiles,
   subscribeAdded,
   watchAddedFiles,
   type AddedFile,
@@ -59,12 +70,12 @@ export const Route = createFileRoute("/fichiers-recents")({
       {
         name: "description",
         content:
-          "Retrouvez en un instant tous les nouveaux fichiers ajoutés à votre stockage, groupés par jour.",
+          "Retrouvez en un instant tous les fichiers ajoutés à votre stockage ces 7 derniers jours, avec toutes les actions du gestionnaire de fichiers.",
       },
       { property: "og:title", content: "Fichiers récents — GeniusFiles" },
       {
         property: "og:description",
-        content: "Tous les nouveaux fichiers ajoutés à votre stockage, groupés par jour.",
+        content: "Tous les fichiers ajoutés à votre stockage ces 7 derniers jours.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -75,9 +86,9 @@ export const Route = createFileRoute("/fichiers-recents")({
 
 type Dialog =
   | { kind: "none" }
-  | { kind: "actions"; entry: AddedFile }
+  | { kind: "actions"; entry: FileEntry }
   | { kind: "details"; info: DetailsInfo | null; loading: boolean; parent: PathRef }
-  | { kind: "rename"; entry: AddedFile; parent: PathRef }
+  | { kind: "rename"; entry: FileEntry; parent: PathRef }
   | { kind: "confirmDelete"; items: AddedFile[] }
   | { kind: "picker"; mode: "copy" | "move"; items: AddedFile[] }
   | { kind: "viewer"; entryId: string };
@@ -88,17 +99,24 @@ function parentOf(f: AddedFile): PathRef {
 
 function AddedFilesPage() {
   const navigate = useNavigate();
+  const goBack = useAppBack();
+
   const [files, setFiles] = useState<AddedFile[]>([]);
+  const [view, setView] = useState<ViewMode>("list");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [progressTitle, setProgressTitle] = useState("");
   const [progressSubtitle, setProgressSubtitle] = useState("");
   const [progressOpen, setProgressOpen] = useState(false);
   const [transferTaskId, setTransferTaskId] = useState<string | null>(null);
-  /* La tâche appartient au gestionnaire global : fermer la fenêtre
-     (« Masquer ») n'interrompt ni ne ralentit le transfert. */
   const activeTransfer = useTransferTask(transferTaskId);
   const transferProgress: ProgressEvent | null = activeTransfer
     ? {
@@ -122,17 +140,44 @@ function AddedFilesPage() {
     }
   }, [activeTransfer]);
 
-  /* Retour Android : recherche en cours → écran précédent. */
+  const signalRef = useRef<(OperationSignal & { cancel: () => void }) | null>(null);
+
+  /* Retour Android : feuille → recherche → sélection → écran précédent. */
   useBackHandler(
-    query.length > 0,
+    moreOpen,
+    () => {
+      setMoreOpen(false);
+      return true;
+    },
+    BACK_PRIORITY.overlay,
+  );
+  useBackHandler(
+    searchOpen,
     () => {
       setQuery("");
+      setSearchOpen(false);
       return true;
     },
     BACK_PRIORITY.mode,
   );
-  const signalRef = useRef<(OperationSignal & { cancel: () => void }) | null>(null);
+  useBackHandler(
+    selected.size > 0,
+    () => {
+      setSelected(new Set());
+      return true;
+    },
+    BACK_PRIORITY.mode,
+  );
 
+  useEffect(() => {
+    setView(loadView());
+    const s = loadSort();
+    setSortKey(s.key);
+    setSortOrder(s.order);
+  }, []);
+
+  /* Affichage immédiat de la dernière liste connue, puis surveillance
+     réelle du stockage (premier plan, mutations, sondage). */
   useEffect(() => {
     const refresh = () => setFiles(loadAddedWindow());
     refresh();
@@ -144,105 +189,209 @@ function AddedFilesPage() {
     };
   }, []);
 
-  /* Tirer pour actualiser : relit la fenêtre des fichiers récents. */
-  usePullToRefresh(
-    useCallback(() => {
+  const doRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshAddedFiles(true);
       setFiles(loadAddedWindow());
-    }, []),
-  );
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  /* Tirer pour actualiser : relecture réelle du stockage. */
+  usePullToRefresh(doRefresh);
+
+  const deferredQuery = useDeferredValue(query);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     if (!q) return files;
     return files.filter(
       (f) => f.name.toLowerCase().includes(q) || addedLocationLabel(f).toLowerCase().includes(q),
     );
-  }, [files, query]);
+  }, [files, deferredQuery]);
 
-  const groups = useMemo(() => groupRecents(filtered), [filtered]);
+  const sorted = useMemo(
+    () => sortEntries(filtered, sortKey, sortOrder, false) as AddedFile[],
+    [filtered, sortKey, sortOrder],
+  );
 
-  const viewerEntries = useMemo(() => filtered.filter((f) => canPreview(f)), [filtered]);
-  const viewerIndex = useMemo(() => {
-    if (dialog.kind !== "viewer") return -1;
-    return viewerEntries.findIndex((f) => addedId(f) === dialog.entryId);
-  }, [dialog, viewerEntries]);
+  /* Regroupement par jour uniquement lorsque le tri est chronologique —
+     comme la galerie du gestionnaire. */
+  const groups = useMemo(
+    () =>
+      sortKey === "date"
+        ? groupRecents(sorted)
+        : [{ key: "all", label: "", files: sorted as AddedFile[] }],
+    [sorted, sortKey],
+  );
+
+  const selectedFiles = useMemo(
+    () => sorted.filter((f) => selected.has(addedId(f))),
+    [sorted, selected],
+  );
+
+  /* Taille réelle de la sélection — même mécanisme que le gestionnaire. */
+  const selectionItems = useMemo(() => {
+    const m = new Map<string, SelectionItem>();
+    for (const f of selectedFiles) {
+      const parent = parentOf(f);
+      const key = selectionKey(parent, f.name);
+      m.set(key, { key, parent, entry: f });
+    }
+    return m;
+  }, [selectedFiles]);
+  const selectionSize = useSelectionSize(selectionItems);
+  const selectionSizeLabel = selectionSize.pending
+    ? selectionSize.bytes > 0
+      ? `${formatSize(selectionSize.bytes)} • calcul…`
+      : "Calcul…"
+    : formatSize(selectionSize.bytes);
+
+  const toggleSelect = useCallback((entry: FileEntry) => {
+    const id = addedId(entry as AddedFile);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const beginSelection = useCallback((entry: FileEntry) => {
+    setSelected(new Set([addedId(entry as AddedFile)]));
+  }, []);
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  const selectAll = useCallback(() => {
+    setSelected(new Set(sorted.map(addedId)));
+  }, [sorted]);
+  const selectRange = useCallback(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const indices: number[] = [];
+      sorted.forEach((e, i) => {
+        if (prev.has(addedId(e))) indices.push(i);
+      });
+      if (indices.length === 0) return prev;
+      const lo = indices[0];
+      const hi = indices[indices.length - 1];
+      const next = new Set(prev);
+      for (let i = lo; i <= hi; i++) next.add(addedId(sorted[i]));
+      return next;
+    });
+  }, [sorted]);
+  const isSelected = useCallback(
+    (e: FileEntry) => selected.has(addedId(e as AddedFile)),
+    [selected],
+  );
 
   const refreshAfterMutation = () => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("gf:storage-changed"));
     }
+    void refreshAddedFiles(true).then(() => setFiles(loadAddedWindow()));
   };
 
-  const openEntry = useCallback((f: AddedFile) => {
+  const groupByParent = (items: AddedFile[]) => {
+    const m = new Map<string, { parent: PathRef; entries: AddedFile[] }>();
+    for (const f of items) {
+      const key = `${f.rootId}/${f.folderSegments.join("/")}`;
+      const bucket = m.get(key);
+      if (bucket) bucket.entries.push(f);
+      else m.set(key, { parent: parentOf(f), entries: [f] });
+    }
+    return [...m.values()];
+  };
+
+  const openEntry = useCallback((entry: FileEntry) => {
+    const f = entry as AddedFile;
     if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
     else setDialog({ kind: "actions", entry: f });
   }, []);
 
+  const quickOpenEntry = useCallback((entry: FileEntry) => {
+    const f = entry as AddedFile;
+    if (canOpenInViewer(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
+    else setDialog({ kind: "actions", entry: f });
+  }, []);
+
   const doShare = useCallback(async (items: AddedFile[]) => {
-    for (const f of items) {
-      const r = await shareEntries(parentOf(f), [f]);
+    for (const g of groupByParent(items)) {
+      const r = await shareEntries(g.parent, g.entries);
       if (!r.ok) toast.error(errorMessage(r.error, "Partage impossible"));
     }
   }, []);
 
-  const doDelete = useCallback(async (items: AddedFile[]) => {
-    let ok = 0;
-    let failed = 0;
-    for (const f of items) {
-      const r = await deleteEntries(parentOf(f), [f]);
-      ok += r.succeeded;
-      failed += r.failed.length;
-    }
-    refreshAfterMutation();
-    const s = batchSummary("déplacé(s) dans la Corbeille", ok, failed);
-    if (s.ok) toast.success(s.message);
-    else toast.error(s.message);
-  }, []);
-
-  const doTransfer = useCallback((mode: "copy" | "move", items: AddedFile[], dest: PathRef) => {
-    const destLabel = dest.segments.length ? dest.segments.join(" / ") : "Racine du stockage";
-    const id = startTransfer({
-      mode,
-      groups: items.map((f) => ({ parent: parentOf(f), entries: [f as FileEntry] })),
-      destination: dest,
-      onDone: (task) => {
-        refreshAfterMutation();
-        if (task.status === "cancelled") {
-          toast.warning("Opération annulée");
-          return;
-        }
-        const s = batchSummary(
-          mode === "copy" ? "copié(s)" : "déplacé(s)",
-          task.succeeded,
-          task.failures.length,
-        );
-        if (s.ok) toast.success(s.message);
-        else toast.error(s.message);
-      },
-    });
-    setTransferTaskId(id);
-    setProgressTitle(
-      progressLabel(mode === "copy" ? "Copie" : "Déplacement", undefined, items.length),
-    );
-    setProgressSubtitle(`Vers « ${destLabel} »`);
-    setProgressOpen(true);
-  }, []);
-
-  const doRename = useCallback(async (entry: FileEntry, parent: PathRef, newName: string) => {
-    const r = await renameEntry(parent, entry, newName);
-    if (r.ok) {
-      toast.success("Renommé");
+  const doDelete = useCallback(
+    async (items: AddedFile[]) => {
+      let ok = 0;
+      let failed = 0;
+      for (const g of groupByParent(items)) {
+        const r = await deleteEntries(g.parent, g.entries);
+        ok += r.succeeded;
+        failed += r.failed.length;
+      }
+      clearSelection();
       refreshAfterMutation();
-      return true;
-    }
-    toast.error(errorMessage(r.error, "Renommage impossible"));
-    return false;
-  }, []);
+      const s = batchSummary("déplacé(s) dans la Corbeille", ok, failed);
+      if (s.ok) toast.success(s.message);
+      else toast.error(s.message);
+    },
+    [clearSelection],
+  );
+
+  const doTransfer = useCallback(
+    (mode: "copy" | "move", items: AddedFile[], dest: PathRef) => {
+      const destLabel = dest.segments.length ? dest.segments.join(" / ") : "Racine du stockage";
+      const id = startTransfer({
+        mode,
+        groups: groupByParent(items),
+        destination: dest,
+        onDone: (task) => {
+          refreshAfterMutation();
+          if (task.status === "cancelled") {
+            toast.warning("Opération annulée");
+            return;
+          }
+          const s = batchSummary(
+            mode === "copy" ? "copié(s)" : "déplacé(s)",
+            task.succeeded,
+            task.failures.length,
+          );
+          if (s.ok) toast.success(s.message);
+          else toast.error(s.message);
+        },
+      });
+      setTransferTaskId(id);
+      setProgressTitle(
+        progressLabel(mode === "copy" ? "Copie" : "Déplacement", undefined, items.length),
+      );
+      setProgressSubtitle(`Vers « ${destLabel} »`);
+      setProgressOpen(true);
+      clearSelection();
+    },
+    [clearSelection],
+  );
+
+  const doRename = useCallback(
+    async (entry: FileEntry, parent: PathRef, newName: string) => {
+      const r = await renameEntry(parent, entry, newName);
+      if (r.ok) {
+        toast.success("Renommé");
+        clearSelection();
+        refreshAfterMutation();
+        return true;
+      }
+      toast.error(errorMessage(r.error, "Renommage impossible"));
+      return false;
+    },
+    [clearSelection],
+  );
 
   const onEntryAction = useCallback(
     async (action: EntryAction) => {
       if (dialog.kind !== "actions") return;
-      const f = dialog.entry;
+      const f = dialog.entry as AddedFile;
       const parent = parentOf(f);
       setDialog({ kind: "none" });
       switch (action) {
@@ -254,10 +403,7 @@ function AddedFilesPage() {
           await openWithSystem(parent, f);
           break;
         case "editAudio":
-          await navigate({
-            to: "/editeur-audio",
-            search: audioEditorSearch(parent, f),
-          });
+          await navigate({ to: "/editeur-audio", search: audioEditorSearch(parent, f) });
           break;
         case "share":
           await doShare([f]);
@@ -323,99 +469,165 @@ function AddedFilesPage() {
     [doShare],
   );
 
+  const viewerEntries = useMemo(() => sorted.filter((f) => canOpenInViewer(f)), [sorted]);
+  const viewerIndex = useMemo(() => {
+    if (dialog.kind !== "viewer") return -1;
+    return viewerEntries.findIndex((f) => addedId(f) === dialog.entryId);
+  }, [dialog, viewerEntries]);
+
+  const selectionMode = selected.size > 0;
+
   return (
     <AppShell>
-      <div className="mb-3 flex items-center gap-2">
-        <BackButton />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold">Fichiers récents</h1>
-          <p className="text-[11px] leading-snug text-muted-foreground">
-            Tous les nouveaux fichiers ajoutés à votre stockage ces derniers jours.
-          </p>
-        </div>
-      </div>
+      <FilesTopBar
+        title="Fichiers récents"
+        count={sorted.length}
+        onBack={goBack}
+        onSearch={() => setSearchOpen((v) => !v)}
+        view={view}
+        onViewChange={(v) => {
+          setView(v);
+          saveView(v);
+        }}
+        sortKey={sortKey}
+        sortOrder={sortOrder}
+        onSortChange={(k, o) => {
+          setSortKey(k);
+          setSortOrder(o);
+          saveSort({ key: k, order: o });
+        }}
+        onRefresh={() => {
+          void doRefresh();
+        }}
+        refreshing={refreshing}
+        onSelect={() => sorted[0] && setSelected(new Set([addedId(sorted[0])]))}
+        selection={
+          selectionMode
+            ? {
+                count: selectedFiles.length,
+                sizeLabel: selectionSizeLabel,
+                onClear: clearSelection,
+                onSelectAll: selectAll,
+                onSelectRange: selectedFiles.length >= 1 ? selectRange : undefined,
+              }
+            : null
+        }
+      />
 
-      <div className="mb-4 flex h-11 items-center gap-2 rounded-2xl border border-border bg-surface px-3">
-        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher dans les fichiers récents"
-          className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
-          aria-label="Rechercher dans les fichiers récents"
-        />
-        {query ? (
+      {searchOpen && !selectionMode ? (
+        <div className="mb-2 mt-2 flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5">
+          <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher dans les fichiers récents"
+            className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+          />
           <button
             type="button"
-            aria-label="Effacer"
-            onClick={() => setQuery("")}
-            className="rounded-full p-1 text-muted-foreground"
+            onClick={() => {
+              setQuery("");
+              setSearchOpen(false);
+            }}
+            aria-label="Fermer la recherche"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-        ) : null}
-      </div>
-
-      {groups.length === 0 ? (
-        <div className="mt-10 flex flex-col items-center gap-2 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Clock3 className="h-7 w-7" strokeWidth={1.8} />
-          </span>
-          <p className="text-[14px] font-medium">
-            {query ? "Aucun résultat." : "Aucun fichier récent."}
-          </p>
-          <p className="max-w-[18rem] text-[12px] leading-snug text-muted-foreground">
-            {query
-              ? "Essayez un autre nom de fichier."
-              : "Les nouveaux fichiers ajoutés à votre stockage apparaîtront ici."}
-          </p>
         </div>
+      ) : null}
+
+      {sorted.length === 0 && query.trim() ? (
+        <IllustratedEmptyState
+          id="search"
+          description={`Aucun fichier récent ne correspond à « ${query.trim()} ». Essayez un autre terme.`}
+          action={
+            <button onClick={() => setQuery("")} className="btn-primary gf-press">
+              Effacer la recherche
+            </button>
+          }
+        />
+      ) : sorted.length === 0 ? (
+        <IllustratedEmptyState
+          id="documents"
+          description="Les fichiers ajoutés à votre stockage ces 7 derniers jours apparaîtront ici."
+        />
       ) : (
-        <div className="flex flex-col gap-5 pb-8">
+        <div className="-mx-4 pt-1">
           {groups.map((g) => (
-            <section key={g.key} aria-label={g.label}>
-              <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                {g.label}
-              </h2>
-              <ul className="flex flex-col gap-2.5">
-                {g.files.map((f, i) => (
-                  <li
-                    key={addedId(f)}
-                    className="gf-appear"
-                    style={{
-                      animationDelay: `${Math.min(i, 8) * 35}ms`,
-                      animationFillMode: "backwards",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => openEntry(f)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setDialog({ kind: "actions", entry: f });
-                      }}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-surface px-3.5 py-3 text-left shadow-[0_1px_6px_-6px_rgba(15,23,42,0.25)] transition-transform duration-150 active:scale-[0.985]"
-                    >
-                      <span className="w-11 shrink-0 text-[11.5px] font-medium tabular-nums text-muted-foreground">
-                        {formatRecentClock(f.at)}
-                      </span>
-                      <FileIcon kind={f.kind} size="sm" path={addedAbsPath(f)} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-medium leading-tight">
-                          {f.name}
-                        </span>
-                        <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">
-                          {addedLocationLabel(f)}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            <section key={g.key} aria-label={g.label || undefined}>
+              {g.label ? (
+                <h2 className="sticky top-0 z-10 bg-background/95 px-4 py-1.5 text-[12.5px] font-semibold text-foreground/90 backdrop-blur">
+                  {g.label}
+                </h2>
+              ) : null}
+              {view === "list" ? (
+                <FileListView
+                  entries={g.files}
+                  onOpen={openEntry}
+                  onQuickOpen={quickOpenEntry}
+                  onLongPress={beginSelection}
+                  onMore={(e) => setDialog({ kind: "actions", entry: e })}
+                  selectionMode={selectionMode}
+                  isSelected={isSelected}
+                  onToggleSelect={toggleSelect}
+                />
+              ) : (
+                <FileGridView
+                  entries={g.files}
+                  onOpen={openEntry}
+                  onQuickOpen={quickOpenEntry}
+                  onLongPress={beginSelection}
+                  onMore={(e) => setDialog({ kind: "actions", entry: e })}
+                  selectionMode={selectionMode}
+                  isSelected={isSelected}
+                  onToggleSelect={toggleSelect}
+                />
+              )}
             </section>
           ))}
         </div>
       )}
+
+      {selectionMode ? (
+        <SelectionBar
+          count={selectedFiles.length}
+          onCopy={() => setDialog({ kind: "picker", mode: "copy", items: selectedFiles })}
+          onMove={() => setDialog({ kind: "picker", mode: "move", items: selectedFiles })}
+          onDelete={() => setDialog({ kind: "confirmDelete", items: selectedFiles })}
+          onRename={() => {
+            if (selectedFiles.length !== 1) return;
+            const f = selectedFiles[0];
+            setDialog({ kind: "rename", entry: f, parent: parentOf(f) });
+          }}
+          onShare={() => doShare(selectedFiles.filter((f) => !f.isDirectory))}
+          onMore={() => setMoreOpen(true)}
+        />
+      ) : null}
+
+      <MoreActionsSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        actions={buildMoreActions(selectedFiles, {
+          onShare: () => doShare(selectedFiles.filter((f) => !f.isDirectory)),
+          onProperties: async () => {
+            const f = selectedFiles[0];
+            if (!f) return;
+            const parent = parentOf(f);
+            setDialog({ kind: "details", info: null, loading: true, parent });
+            const info = await readDetails(parent, f);
+            setDialog({ kind: "details", info, loading: false, parent });
+          },
+          onCut: () => setDialog({ kind: "picker", mode: "move", items: selectedFiles }),
+        })}
+      />
 
       <EntryActionSheet
         open={dialog.kind === "actions"}
@@ -498,8 +710,8 @@ function AddedFilesPage() {
           if (next) setDialog({ kind: "viewer", entryId: addedId(next) });
         }}
         onClose={() => setDialog({ kind: "none" })}
+        parentOf={(e) => parentOf(e as AddedFile)}
         onAction={onViewerAction}
-        parentOf={(e) => parentOf(e as never)}
       />
 
       <ProgressDialog
@@ -507,13 +719,17 @@ function AddedFilesPage() {
         title={progressTitle}
         subtitle={progressSubtitle}
         progress={transferProgress ?? progress}
-        speedBps={activeTransfer?.speedBps}
-        onHide={activeTransfer ? hideTransferDialog : undefined}
         onCancel={() => {
-          if (activeTransfer) cancelTransfer(activeTransfer.id);
+          if (transferTaskId) cancelTransfer(transferTaskId);
           else signalRef.current?.cancel();
         }}
+        onHide={transferTaskId ? hideTransferDialog : undefined}
       />
     </AppShell>
   );
 }
+
+/* Références conservées pour l'alignement avec le gestionnaire de
+   fichiers (opérations synchrones hors transfert géré). */
+void createSignal;
+void transferEntries;
