@@ -1389,6 +1389,43 @@ html.gf-immersive .gf-thumb-bar {
   animation: gf-status-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Ligne unique : apparition douce, disparition progressive sans saut. */
+@keyframes gf-pipeline-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility gf-pipeline-line {
+  animation: gf-pipeline-line-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity;
+}
+
+@utility gf-pipeline-out {
+  animation: gf-pipeline-line-in 320ms cubic-bezier(0.4, 0, 0.2, 1) reverse both;
+}
+
+/* Remplacement de l'étape active : l'ancienne cède la place en douceur. */
+@keyframes gf-pipeline-swap {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility gf-pipeline-swap {
+  animation: gf-pipeline-swap 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes gf-pipeline-pop {
   from {
     transform: scale(0.6);
@@ -1417,6 +1454,9 @@ html.gf-immersive .gf-thumb-bar {
 @media (prefers-reduced-motion: reduce) {
   .gf-pipeline,
   .gf-pipeline-detail,
+  .gf-pipeline-line,
+  .gf-pipeline-out,
+  .gf-pipeline-swap,
   .gf-pipeline-pop {
     animation: none;
   }
