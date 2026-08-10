@@ -42,12 +42,10 @@ import { selectionKey, type SelectionItem } from "@/lib/files/selection-store";
 import { loadSort, loadView, saveSort, saveView } from "@/lib/files/preferences";
 import type { FileEntry, PathRef, SortKey, SortOrder, ViewMode } from "@/lib/files/types";
 import {
-  createSignal,
   deleteEntries,
   readDetails,
   renameEntry,
   shareEntries,
-  transferEntries,
   type DetailsInfo,
   type OperationSignal,
   type ProgressEvent,
@@ -728,8 +726,3 @@ function AddedFilesPage() {
     </AppShell>
   );
 }
-
-/* Références conservées pour l'alignement avec le gestionnaire de
-   fichiers (opérations synchrones hors transfert géré). */
-void createSignal;
-void transferEntries;

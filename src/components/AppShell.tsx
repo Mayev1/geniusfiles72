@@ -39,6 +39,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
       "/pdf-outils",
       "/outils",
       "/corbeille",
+      "/fichiers-recents",
       "/nettoyeur",
       "/applications",
       "/transfert",
