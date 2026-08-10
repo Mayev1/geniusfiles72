@@ -237,13 +237,30 @@ export function UniversalViewer({
     });
   }, [open, parent, entries, index, kind]);
 
+  /* ---- Passage de relais audio (hors rendu) ----------------------------
+     La file est confiée au lecteur global dans un effet : la lecture démarre
+     immédiatement, sans recalcul de liste ni travail lourd pendant le rendu. */
+  const audioHandoff = open && !!parent && !!entry && kind === "audio";
+  const audioRel = kind === "audio" ? relIndexOf(entry) : -1;
+  useEffect(() => {
+    if (!audioHandoff || !parent) return;
+    try {
+      audioStore.playQueue(parent, siblings, Math.max(0, audioRel), siblingParents ?? undefined);
+      audioStore.openUI();
+    } catch {
+      /* ignore */
+    }
+    closeRef.current();
+  }, [audioHandoff, parent, siblings, siblingParents, audioRel]);
+
   if (!open || !entry || !parent) return null;
+  if (kind === "audio") return null;
 
   // Dedicated full-screen premium players for audio and video kinds.
   // Images use the premium universal image player, whatever the entry point.
   if (kind === "image") {
-    const siblings = entries.filter((e) => viewerKindOf(e) === "image");
-    const rel = Math.max(0, siblings.indexOf(entry));
+    const rel = Math.max(0, relIndexOf(entry));
+
     const fireI = (a: ViewerAction) => {
       setMenuOpen(false);
       onAction(entry, a);
