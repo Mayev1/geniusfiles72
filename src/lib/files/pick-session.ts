@@ -38,6 +38,7 @@ export type PickedDetail = {
 export type PickScreen =
   | { kind: "home" }
   | { kind: "category"; category: CategoryKind }
+  | { kind: "apps" }
   | { kind: "recents" }
   | { kind: "search" };
 
@@ -47,6 +48,8 @@ export type PickRequest = {
   multi: boolean;
   /** Extensions minuscules sans point ; vide = tout accepter. */
   extensions: string[];
+  /** Intitulé affiché en tête du mode sélection. */
+  title: string;
 };
 
 type Session = PickRequest & {
@@ -88,6 +91,8 @@ export function requestPick(opts: {
   accept?: PickAccept;
   multi: boolean;
   extensions?: string[];
+  /** Message affiché à l'utilisateur (« Sélectionnez les PDF à importer »). */
+  title?: string;
 }): Promise<PickedDetail[] | null> {
   // Une nouvelle demande annule proprement la précédente.
   if (session) session.resolve(null);
@@ -95,11 +100,14 @@ export function requestPick(opts: {
   stack = [{ kind: "home" }];
   return new Promise<PickedDetail[] | null>((resolve) => {
     const id = nextId++;
+    const accept = opts.accept ?? "files";
+    const multi = opts.multi;
     session = {
       id,
-      accept: opts.accept ?? "files",
-      multi: opts.multi,
+      accept,
+      multi,
       extensions: (opts.extensions ?? []).map((e) => e.toLowerCase()),
+      title: opts.title?.trim() || defaultPickTitle(accept, multi),
       resolve,
     };
     request = {
@@ -107,6 +115,7 @@ export function requestPick(opts: {
       accept: session.accept,
       multi: session.multi,
       extensions: session.extensions,
+      title: session.title,
     };
     emit();
   });
@@ -124,6 +133,18 @@ function finish(result: PickedDetail[] | null) {
 
 export function cancelPick(): void {
   if (session) finish(null);
+}
+
+function defaultPickTitle(accept: PickAccept, multi: boolean): string {
+  if (accept === "folders") return multi ? "Sélectionnez vos dossiers" : "Sélectionnez un dossier";
+  if (accept === "both") return multi ? "Sélectionnez vos éléments" : "Sélectionnez un élément";
+  return multi ? "Sélectionnez vos fichiers" : "Sélectionnez un fichier";
+}
+
+/** Vrai si la session peut recevoir des APK (tuile « Applications »). */
+export function pickAllowsApk(req: PickRequest): boolean {
+  if (req.accept === "folders") return false;
+  return req.extensions.length === 0 || req.extensions.includes("apk");
 }
 
 /** Vrai si l'élément correspond à ce que la fonctionnalité accepte. */

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { X } from "lucide-react";
 import { Portal } from "@/components/common/Portal";
+import { useInPickLayer } from "@/components/files/pick-layer-context";
 import { BACK_PRIORITY, registerBackHandler } from "@/lib/navigation/back-stack";
 
 // Shared stack of currently-open BottomSheet ids. Only the topmost entry
@@ -97,6 +98,10 @@ export function BottomSheet({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  /* Une feuille ouverte pendant une session de sélection doit passer
+     au-dessus de la couche de sélection (elle en fait partie). */
+  const inPick = useInPickLayer();
+
   useEffect(() => {
     if (!open) return;
 
@@ -137,7 +142,7 @@ export function BottomSheet({
   return (
     <Portal>
       <div
-        className={`fixed inset-0 z-[3000] flex transition-opacity duration-150 ease-out ${
+        className={`fixed inset-0 ${inPick ? "z-[3800]" : "z-[3000]"} flex transition-opacity duration-150 ease-out ${
           visible ? "opacity-100" : "opacity-0"
         } ${isFullScreen ? "items-stretch justify-stretch" : "items-center justify-center px-4"}`}
         style={{

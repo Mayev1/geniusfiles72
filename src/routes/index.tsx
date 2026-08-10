@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAppNavigate } from "@/lib/navigation/pick-nav";
-import { confirmPick, usePickRequest } from "@/lib/files/pick-session";
+import {
+  pickAccepts,
+  pickAllowsApk,
+  usePickRequest,
+  type PickRequest,
+} from "@/lib/files/pick-session";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useBackHandler, BACK_PRIORITY } from "@/lib/navigation/back-stack";
@@ -651,10 +656,12 @@ export function FilesPage() {
           navigateTo({ rootId: path.rootId, segments: [...path.segments, entry.name] });
           return;
         }
-        if (!entry.isDirectory && pick.accept === "folders") return;
-        // Sélection unique : toucher l'élément valide directement l'action.
+        // Élément incompatible (mauvaise extension) : rien à sélectionner.
+        if (!pickAccepts(entry, pick)) return;
+        /* Sélection unique : l'élément touché remplace le précédent et
+           reste sélectionné jusqu'à « Valider ». */
         if (!pick.multi) {
-          confirmPick({ parent: path, entry });
+          replaceSelection(path, [entry]);
           return;
         }
       }
@@ -1121,7 +1128,7 @@ export function FilesPage() {
           onToggleSelect={toggleSelect}
         />
       ) : (
-        <RootView roots={roots} onOpenRoot={openRoot} />
+        <RootView roots={roots} onOpenRoot={openRoot} pick={pick} />
       )}
 
       {selectionMode && !pick ? (
@@ -1411,9 +1418,12 @@ function DirectoryView({
 function RootView({
   roots,
   onOpenRoot,
+  pick,
 }: {
   roots: ReturnType<typeof listRoots>;
   onOpenRoot: (id: PathRef["rootId"]) => void;
+  /** Session de sélection en cours : l'accueil devient un mode sélection. */
+  pick?: PickRequest | null;
 }) {
   const navigate = useAppNavigate();
   const { stats } = useStorageStats();
@@ -1571,6 +1581,7 @@ function RootView({
     count?: number;
     bytes?: number;
     onOpen: () => void;
+    hidden?: boolean;
   };
 
   const categories: CatDef[] = [
@@ -1627,6 +1638,9 @@ function RootView({
       count: apps?.count,
       bytes: apps?.bytes,
       onOpen: () => navigate({ to: "/applications" }),
+      /* Pendant une sélection, la tuile n'a de sens que si des APK sont
+         acceptés (transfert, partage, sauvegarde…). */
+      hidden: pick ? !pickAllowsApk(pick) : false,
     },
   ];
 
@@ -1673,8 +1687,12 @@ function RootView({
     <div className="flex flex-col gap-5 pb-6">
       {/* Salutation = titre principal de la page, en en-tête collant. */}
       <PageHeader
-        title={greeting}
-        subtitle="Gérez vos fichiers plus rapidement."
+        title={pick ? pick.title : greeting}
+        subtitle={
+          pick
+            ? "Accédez au stockage ou aux catégories ci-dessous pour sélectionner."
+            : "Gérez vos fichiers plus rapidement."
+        }
         action={
           <button
             type="button"
@@ -1691,7 +1709,7 @@ function RootView({
         }
       />
 
-      <ResumeBanner />
+      {pick ? null : <ResumeBanner />}
 
       {/* Stockages — accès direct au gestionnaire de fichiers */}
       <StorageCards onOpenRoot={onOpenRoot} internalFilesFallback={totalFiles || undefined} />
@@ -1702,55 +1720,89 @@ function RootView({
           Catégories
         </h2>
         <div className="grid grid-cols-3 gap-2">
-          {categories.map((c) => (
-            <CategoryTile
-              key={c.key}
-              label={c.label}
-              icon={c.icon}
-              tint={c.tint}
-              count={c.count}
-              bytes={c.bytes}
-              loading={!scan}
-              onOpen={c.onOpen}
-            />
-          ))}
+          {categories
+            .filter((c) => !c.hidden)
+            .map((c) => (
+              <CategoryTile
+                key={c.key}
+                label={c.label}
+                icon={c.icon}
+                tint={c.tint}
+                count={c.count}
+                bytes={c.bytes}
+                loading={!scan}
+                onOpen={c.onOpen}
+              />
+            ))}
         </div>
       </section>
 
       {/* Fichiers récents */}
       <RecentFilesSection />
 
-      {/* Tools grid — compact */}
-      <section aria-label="Outils">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Outils
-          </h2>
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/outils" })}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-primary"
-          >
-            Tout voir <ArrowUpRight className="h-3 w-3" />
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {tools.map((t) => (
+      {pick ? <PickHowTo multi={pick.multi} /> : null}
+
+      {/* Tools grid — compact (masqués pendant une sélection) */}
+      {pick ? null : (
+        <section aria-label="Outils">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Outils
+            </h2>
             <button
-              key={t.title}
               type="button"
-              onClick={() => navigate({ to: t.to })}
-              className="group flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-surface px-1.5 py-3 text-center transition-transform duration-100 ease-out active:scale-[0.96] hover:border-primary/30"
+              onClick={() => navigate({ to: "/outils" })}
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-primary"
             >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.tint}`}>
-                <t.icon className="h-[18px] w-[18px]" strokeWidth={2} />
-              </span>
-              <p className="w-full truncate text-[12px] font-semibold leading-tight">{t.title}</p>
+              Tout voir <ArrowUpRight className="h-3 w-3" />
             </button>
-          ))}
-        </div>
-      </section>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {tools.map((t) => (
+              <button
+                key={t.title}
+                type="button"
+                onClick={() => navigate({ to: t.to })}
+                className="group flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-surface px-1.5 py-3 text-center transition-transform duration-100 ease-out active:scale-[0.96] hover:border-primary/30"
+              >
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.tint}`}>
+                  <t.icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                </span>
+                <p className="w-full truncate text-[12px] font-semibold leading-tight">{t.title}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
+  );
+}
+
+/**
+ * Aide contextuelle affichée à la place des outils pendant une session
+ * de sélection : trois gestes suffisent, rien d'autre n'est proposé.
+ */
+function PickHowTo({ multi }: { multi: boolean }) {
+  return (
+    <section
+      aria-label="Comment sélectionner"
+      className="rounded-2xl border border-border bg-surface p-3.5"
+    >
+      <h2 className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Comment sélectionner ?
+      </h2>
+      <ul className="space-y-1 text-[13px] leading-snug text-foreground/85">
+        <li>• Accédez à un stockage ou à une catégorie.</li>
+        <li>
+          •{" "}
+          {multi
+            ? "Touchez chaque fichier à ajouter à votre sélection."
+            : "Touchez le fichier voulu pour le sélectionner."}
+        </li>
+        <li>• Touchez son icône pour le prévisualiser ou l'ouvrir.</li>
+        <li>• Terminez avec « Valider », ou « Annuler » pour revenir.</li>
+      </ul>
+    </section>
   );
 }
 

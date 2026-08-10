@@ -10,6 +10,7 @@
  */
 import { Suspense, lazy } from "react";
 
+import { AppsPickScreen } from "@/components/files/AppsPickScreen";
 import { PickBar } from "@/components/files/PickBar";
 import { PickLayerProvider } from "@/components/files/pick-layer-context";
 import { LoadingState } from "@/components/files/StateViews";
@@ -45,10 +46,13 @@ export function PickLayer() {
 
   return (
     <PickLayerProvider value={true}>
-      <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-background">
+      {/* z au-dessus des feuilles (z-3000) éventuellement ouvertes par
+          l'écran appelant : aucun ancien écran ne peut rester visible. */}
+      <div className="fixed inset-0 z-[3500] overflow-y-auto overscroll-contain bg-background">
         <Suspense fallback={<LoadingState />}>
           {screen.kind === "home" ? <HomeScreen /> : null}
           {screen.kind === "category" ? <CategoryScreen kind={screen.category} /> : null}
+          {screen.kind === "apps" ? <AppsPickScreen request={request} /> : null}
           {screen.kind === "recents" ? <RecentsScreen /> : null}
           {screen.kind === "search" ? <SearchScreen /> : null}
         </Suspense>
