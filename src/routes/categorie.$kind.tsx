@@ -5,7 +5,14 @@
  * dossier d'origine. Les résultats streament pendant l'analyse et
  * sont mis en cache : réouvrir la catégorie est quasi instantané.
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useAppNavigate } from "@/lib/navigation/pick-nav";
+import { confirmPick, usePickRequest } from "@/lib/files/pick-session";
+import {
+  selectionKey as globalSelectionKey,
+  toggleSelection as toggleGlobalSelection,
+  useSelection as useGlobalSelection,
+} from "@/lib/files/selection-store";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, FolderSearch } from "lucide-react";
 import { toast } from "sonner";
@@ -100,8 +107,13 @@ export const Route = createFileRoute("/categorie/$kind")({
       ],
     };
   },
-  component: CategoryPage,
+  component: CategoryRoute,
 });
+
+function CategoryRoute() {
+  const params = Route.useParams();
+  return <CategoryPage kind={isKind(params.kind) ? params.kind : "images"} />;
+}
 
 type Dialog =
   | { kind: "none" }
@@ -116,11 +128,17 @@ function parentOf(f: CategoryFile): PathRef {
   return { rootId: f.rootId, segments: f.folderSegments };
 }
 
-function CategoryPage() {
-  const navigate = useNavigate();
-  const params = Route.useParams();
-  const kind: CategoryKind = isKind(params.kind) ? params.kind : "images";
+/**
+ * Écran officiel d'une catégorie. Réutilisé à l'identique par la route et
+ * par une session de sélection (`PickLayer`).
+ */
+export function CategoryPage({ kind }: { kind: CategoryKind }) {
+  const navigate = useAppNavigate();
   const label = CATEGORY_LABEL[kind];
+  /* Session de sélection : la sélection passe par le store global afin que
+     la barre « Valider » voie exactement les mêmes éléments. */
+  const pick = usePickRequest();
+  const globalSelection = useGlobalSelection();
 
   const [files, setFiles] = useState<CategoryFile[]>([]);
 
@@ -442,8 +460,26 @@ function CategoryPage() {
       : "Calcul…"
     : formatSize(selectionSize.bytes);
 
-  const toggleSelect = useCallback((entry: FileEntry) => {
-    const f = entry as CategoryFile;
+  const toggleSelect = useCallback(
+    (entry: FileEntry) => {
+      const f = entry as CategoryFile;
+      if (pick) {
+        if (pick.accept === "folders") return;
+        if (!pick.multi) {
+          confirmPick({ parent: parentOf(f), entry: f });
+          return;
+        }
+        toggleGlobalSelection(parentOf(f), f);
+        return;
+      }
+      pickLessToggle(f);
+    },
+    // pickLessToggle est stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pick],
+  );
+
+  const pickLessToggle = useCallback((f: CategoryFile) => {
     setSelected((prev) => {
       const next = new Set(prev);
       const id = idOf(f);
@@ -475,8 +511,11 @@ function CategoryPage() {
     });
   }, [sorted]);
   const isSelected = useCallback(
-    (e: FileEntry) => selected.has(idOf(e as CategoryFile)),
-    [selected],
+    (e: FileEntry) =>
+      pick
+        ? globalSelection.has(globalSelectionKey(parentOf(e as CategoryFile), e.name))
+        : selected.has(idOf(e as CategoryFile)),
+    [selected, pick, globalSelection],
   );
 
   const openEntry = useCallback((entry: FileEntry) => {
@@ -836,8 +875,10 @@ function CategoryPage() {
                     onOpen={openEntry}
                     onQuickOpen={quickOpenEntry}
                     onLongPress={beginSelection}
-                    onMore={(e) => setDialog({ kind: "actions", entry: e })}
-                    selectionMode={selectionMode}
+                    onMore={(e) => {
+                      if (!pick) setDialog({ kind: "actions", entry: e });
+                    }}
+                    selectionMode={selectionMode || pick !== null}
                     isSelected={isSelected}
                     onToggleSelect={toggleSelect}
                   />
@@ -847,8 +888,10 @@ function CategoryPage() {
                     onOpen={openEntry}
                     onQuickOpen={quickOpenEntry}
                     onLongPress={beginSelection}
-                    onMore={(e) => setDialog({ kind: "actions", entry: e })}
-                    selectionMode={selectionMode}
+                    onMore={(e) => {
+                      if (!pick) setDialog({ kind: "actions", entry: e });
+                    }}
+                    selectionMode={selectionMode || pick !== null}
                     isSelected={isSelected}
                     onToggleSelect={toggleSelect}
                   />
@@ -862,7 +905,7 @@ function CategoryPage() {
         </div>
       )}
 
-      {selectionMode ? (
+      {selectionMode && !pick ? (
         <SelectionBar
           count={selectedFiles.length}
           onCopy={() => setDialog({ kind: "picker", mode: "copy", items: selectedFiles })}
