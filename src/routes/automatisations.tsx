@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { errorMessage } from "@/lib/errors/humanize";
 import {
@@ -142,6 +143,9 @@ function AutomationsPage() {
     setItems(listAutomations());
     setHistory(loadExecutionHistory());
   }, []);
+
+  /* Tirer pour actualiser : relit les règles et l'historique réels. */
+  usePullToRefresh(refresh);
 
   useEffect(() => {
     refresh();
