@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { FileSourcePicker } from "@/components/files/FileSourcePicker";
 import type { FileEntry, PathRef } from "@/lib/files/types";
 import { BottomSheet, PrimaryButton, TextField } from "@/components/files/BottomSheet";
 import { formatSize } from "@/lib/files/format";
