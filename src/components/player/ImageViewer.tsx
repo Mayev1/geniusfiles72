@@ -33,6 +33,10 @@ import { formatDate, formatSize } from "@/lib/files/format";
 const CLOSE_MS = 220;
 const DOUBLE_TAP_MS = 280;
 const MAX_SCALE = 6;
+/** Espace entre deux images de la pellicule (comme une galerie Android). */
+const SLIDE_GAP = 16;
+/** Durée du glissement qui termine un changement d'image. */
+const SLIDE_MS = 240;
 
 /* Full-resolution preloader — keeps decoded neighbours warm. */
 const decoded = new Map<string, boolean>();
@@ -89,7 +93,6 @@ export function ImageViewer({
   const [animate, setAnimate] = useState(true);
   const [dragX, setDragX] = useState(0);
   const [dismissY, setDismissY] = useState(0);
-  const [loaded, setLoaded] = useState(false);
   const [meta, setMeta] = useState<{ w?: number; h?: number }>({});
 
   useEffect(() => {
@@ -127,7 +130,6 @@ export function ImageViewer({
   useEffect(() => {
     resetTransform();
     setMeta({});
-    setLoaded(isReady(src));
     preload(src);
     neighboursRef.current.forEach(preload);
   }, [src, resetTransform]);
@@ -139,6 +141,36 @@ export function ImageViewer({
     },
     [entries.length, onIndexChange],
   );
+
+  /**
+   * Termine le geste horizontal : la pellicule glisse jusqu'à l'image
+   * voisine, puis l'index change pendant que la transition est coupée —
+   * aucun retour en arrière visible, aucun fondu.
+   */
+  const slideRef = useRef(0);
+  const slideTo = useCallback(
+    (direction: 1 | -1) => {
+      const next = index + direction;
+      if (next < 0 || next > entries.length - 1) {
+        setAnimate(true);
+        setDragX(0);
+        return;
+      }
+      const width = (typeof window !== "undefined" ? window.innerWidth : 0) + SLIDE_GAP;
+      setAnimate(true);
+      setDragX(-direction * width);
+      window.clearTimeout(slideRef.current);
+      slideRef.current = window.setTimeout(() => {
+        setAnimate(false);
+        setDragX(0);
+        onIndexChange(next);
+        requestAnimationFrame(() => setAnimate(true));
+      }, SLIDE_MS);
+    },
+    [entries.length, index, onIndexChange],
+  );
+
+  useEffect(() => () => window.clearTimeout(slideRef.current), []);
 
   const requestClose = useCallback(() => {
     setClosing(true);
@@ -203,7 +235,12 @@ export function ImageViewer({
       if (!s.axis && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
         s.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
       }
-      if (s.axis === "x") setDragX(dx);
+      if (s.axis === "x") {
+        // Résistance en début / fin de série : l'image suit le doigt mais
+        // freine nettement quand il n'y a aucune image de ce côté.
+        const blocked = (dx > 0 && index === 0) || (dx < 0 && index === entries.length - 1);
+        setDragX(blocked ? dx * 0.28 : dx);
+      }
       else if (s.axis === "y" && dy > 0) setDismissY(dy);
     }
   };
@@ -222,9 +259,7 @@ export function ImageViewer({
       swipe.current = null;
 
       if (s.axis === "x" && (Math.abs(dx) > 70 || (Math.abs(dx) > 30 && dt < 250))) {
-        setDragX(0);
-        if (dx < 0) go(index + 1);
-        else go(index - 1);
+        slideTo(dx < 0 ? 1 : -1);
         return;
       }
       if (s.axis === "y" && (dy > 140 || (dy > 60 && dt < 250))) {
@@ -365,7 +400,6 @@ export function ImageViewer({
                       if (off !== 0) return;
                       const img = e.currentTarget;
                       setMeta({ w: img.naturalWidth, h: img.naturalHeight });
-                      setLoaded(true);
                     }}
                     className={`max-h-full max-w-full ${
                       off === 0 && useCover ? "h-full w-full object-cover" : "object-contain"
