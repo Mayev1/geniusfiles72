@@ -1740,7 +1740,6 @@ function RootView({
       {/* Fichiers récents */}
       <RecentFilesSection />
 
-
       {/* Tools grid — compact (masqués pendant une sélection) */}
       {pick ? null : (
         <section aria-label="Outils">
