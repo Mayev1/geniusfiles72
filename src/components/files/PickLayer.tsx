@@ -13,17 +13,10 @@ import { Suspense, lazy } from "react";
 import { PickBar } from "@/components/files/PickBar";
 import { PickLayerProvider } from "@/components/files/pick-layer-context";
 import { LoadingState } from "@/components/files/StateViews";
-import {
-  cancelPick,
-  popPickScreen,
-  usePickRequest,
-  usePickScreen,
-} from "@/lib/files/pick-session";
+import { cancelPick, popPickScreen, usePickRequest, usePickScreen } from "@/lib/files/pick-session";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 
-const HomeScreen = lazy(() =>
-  import("@/routes/index").then((m) => ({ default: m.FilesPage })),
-);
+const HomeScreen = lazy(() => import("@/routes/index").then((m) => ({ default: m.FilesPage })));
 const CategoryScreen = lazy(() =>
   import("@/routes/categorie.$kind").then((m) => ({ default: m.CategoryPage })),
 );

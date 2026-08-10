@@ -10,12 +10,7 @@ import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Portal } from "@/components/common/Portal";
-import {
-  cancelPick,
-  confirmPick,
-  pickAccepts,
-  type PickRequest,
-} from "@/lib/files/pick-session";
+import { cancelPick, confirmPick, pickAccepts, type PickRequest } from "@/lib/files/pick-session";
 import { selectionEntries, useSelection } from "@/lib/files/selection-store";
 
 export function PickBar({ request }: { request: PickRequest }) {
