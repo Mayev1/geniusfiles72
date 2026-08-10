@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { X, Play } from "lucide-react";
 import type { FileEntry } from "@/lib/files/types";
 import { useThumbnail } from "@/hooks/use-thumbnail";
@@ -8,10 +9,12 @@ import { ArtworkFallback } from "./ArtworkFallback";
 /**
  * Bottom sheet listing every media file in the current queue.
  *
- * Kept intentionally simple (native scrolling) — GeniusFiles folders rarely
- * hold thousands of siblings, and virtualisation would fight the entry/exit
- * animation. Backdrop tap and swipe-down close the sheet without
- * interrupting playback.
+ * Liste VIRTUALISÉE : seules les lignes réellement visibles (plus une petite
+ * marge) sont montées, quel que soit le nombre de pistes. Une catégorie de
+ * 100 000 fichiers s'ouvre donc instantanément, sans pic mémoire ni
+ * génération massive de miniatures — chaque ligne demande sa vignette à la
+ * demande et la relâche en sortant du champ. Le fond et le glissé vers le
+ * bas ferment la feuille sans interrompre la lecture.
  */
 export function QueueSheet({
   open,
@@ -43,7 +46,14 @@ export function QueueSheet({
   title: string;
 }) {
   const sheetRef = useRef<HTMLDivElement | null>(null);
-  const activeItemRef = useRef<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const virtualizer = useVirtualizer({
+    count: entries.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -54,12 +64,14 @@ export function QueueSheet({
 
   useEffect(() => {
     if (!open) return;
-    // Auto-scroll to active on open.
+    // La position courante est immédiatement visible, sans rendu intermédiaire.
     const t = window.setTimeout(() => {
-      activeItemRef.current?.scrollIntoView({ block: "center" });
-    }, 60);
+      if (activeIndex >= 0 && activeIndex < entries.length) {
+        virtualizer.scrollToIndex(activeIndex, { align: "center" });
+      }
+    }, 30);
     return () => window.clearTimeout(t);
-  }, [open, activeIndex]);
+  }, [open, activeIndex, entries.length, virtualizer]);
 
   // Swipe-down to close.
   const drag = useRef<{ y: number; ty: number } | null>(null);
