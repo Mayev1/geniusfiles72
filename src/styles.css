@@ -1470,18 +1470,31 @@ html.gf-immersive .gf-thumb-bar {
    Seul le CONTENU de la page bouge : l'en-tête collant (`> header`),
    la barre de navigation et les couches fixes ne sont jamais touchés.
    ============================================================ */
-html {
+html,
+body {
   overscroll-behavior: none;
+  /* Supprime l'étirement natif de la WebView Android (Chromium 12+) :
+     sans cela, TOUTE la page — en-tête compris — se déforme au dépassement. */
+  overscroll-behavior-y: none;
 }
 
-.gf-pulling > *:not(header) {
+/* Seuls les frères NON collants de l'en-tête se décalent. L'en-tête
+   (`> header`) et toute couche déclarée statique restent immobiles. */
+.gf-pulling > *:not(header):not([data-gf-static]) {
   transform: translate3d(0, var(--gf-pull, 0px), 0);
   will-change: transform;
 }
 
-.gf-pull-release > *:not(header) {
+.gf-pull-release > *:not(header):not([data-gf-static]) {
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* Pendant le geste vertical, aucune interaction accidentelle avec la
+   liste (sélection, appui long, ouverture) : le geste appartient au scroll. */
+.gf-pulling > *:not(header):not([data-gf-static]) {
+  pointer-events: none;
+}
+
 
 .gf-pull-spinner {
   opacity: 0;
