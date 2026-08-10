@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { BackButton } from "@/components/navigation/BackButton";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { SectionHeader } from "@/components/ui/SectionHeader";

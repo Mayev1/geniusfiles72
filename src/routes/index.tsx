@@ -42,6 +42,7 @@ import { recordSnapshot, loadSnapshots, type FreeSnapshot } from "@/lib/files/sn
 import { usageTrash, autoPurgeTrash } from "@/lib/files/trash";
 import { ResumeBanner } from "@/components/jobs/ResumeBanner";
 import { AppShell } from "@/components/AppShell";
+import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
 import { PageHeader } from "@/components/common/PageHeader";
 
 import { markStartupSignal } from "@/lib/startup/boot";
