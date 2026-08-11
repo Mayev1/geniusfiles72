@@ -153,6 +153,19 @@ if (existsSync(gradlePath)) {
     );
   }
 
+  // Coffre-fort : la biométrie native (GeniusFilesBiometricPlugin) dépend
+  // d'AndroidX Biometric, absent du projet généré par `cap add android`.
+  // Sans cette dépendance le module ne compile pas et l'APK repart sans
+  // biométrie ("non disponible sur cet appareil").
+  if (!gradle.includes("androidx.biometric:biometric")) {
+    gradle = gradle.replace(
+      /dependencies\s*\{/,
+      (m) =>
+        `${m}\n    implementation "androidx.biometric:biometric:1.1.0"\n    implementation "androidx.fragment:fragment-ktx:1.8.5"\n`,
+    );
+    console.log("✓ androidx.biometric dependency added to app/build.gradle.");
+  }
+
   await writeFile(gradlePath, gradle, "utf8");
   console.log(`✓ build.gradle patched (versionCode=${versionCode}, versionName=${versionName}).`);
 }

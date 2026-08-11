@@ -87,6 +87,15 @@
 
     <!-- QR pairing -->
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Coffre-fort : déverrouillage biométrique (empreinte / visage).
+         USE_BIOMETRIC couvre Android 9+, USE_FINGERPRINT reste requis
+         pour les appareils Android 8 et antérieurs. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT"
+        android:maxSdkVersion="28" />
+    <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
+    <uses-feature android:name="android.hardware.biometrics" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />

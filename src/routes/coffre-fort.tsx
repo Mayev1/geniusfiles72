@@ -83,6 +83,8 @@ import {
   wipeVault,
 } from "@/lib/vault/api";
 import {
+  biometricStatusMessage,
+  getBiometricAvailability,
   getVaultMethod,
   isVaultConfigured,
   isBiometricAvailable,
@@ -93,6 +95,7 @@ import {
   verifyBiometric,
   verifySecret,
 } from "@/lib/vault/auth";
+import type { BiometricStatus } from "@/lib/vault/auth";
 import {
   AUTO_LOCK_OPTIONS,
   loadAutoLockMs,
@@ -242,11 +245,15 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
   const [secret, setSecret] = useState("");
   const [confirmValue, setConfirmValue] = useState("");
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState<BiometricStatus>("unknown");
   const [biometricOpt, setBiometricOpt] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    isBiometricAvailable().then(setBiometricAvailable);
+    getBiometricAvailability().then((r) => {
+      setBiometricAvailable(r.available);
+      setBiometricStatus(r.status);
+    });
   }, []);
 
   const validSecret =
@@ -331,9 +338,7 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-medium">Déverrouillage biométrique</p>
                 <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">
-                  {biometricAvailable
-                    ? "Utiliser votre empreinte digitale ou votre visage comme raccourci."
-                    : "Non disponible sur cet appareil — le code reste requis."}
+                  {biometricStatusMessage(biometricStatus)}
                 </p>
               </div>
               <input
@@ -584,9 +589,16 @@ function LockScreen({ onUnlocked, onReset }: { onUnlocked: () => void; onReset: 
   );
 
   const tryBiometric = async () => {
-    const ok = await verifyBiometric();
-    if (ok) onUnlocked();
-    else setError("Authentification biométrique refusée");
+    const r = await verifyBiometric();
+    if (r.ok) {
+      onUnlocked();
+      return;
+    }
+    if (r.status === "cancelled") {
+      setError(null);
+      return;
+    }
+    setError(biometricStatusMessage(r.status));
   };
 
   return (
@@ -1701,13 +1713,17 @@ function VaultSettings({
   const [background, setBackground] = useState(() => loadLockOnBackground());
   const [bioOn, setBioOn] = useState(() => isBiometricEnabled());
   const [bioReady, setBioReady] = useState(false);
+  const [bioStatus, setBioStatus] = useState<BiometricStatus>("unknown");
   const [askWipe, setAskWipe] = useState(false);
   useEffect(() => {
     if (open) {
       setAutoLock(loadAutoLockMs());
       setBackground(loadLockOnBackground());
       setBioOn(isBiometricEnabled());
-      isBiometricAvailable().then(setBioReady);
+      getBiometricAvailability().then((r) => {
+        setBioReady(r.available);
+        setBioStatus(r.status);
+      });
     }
   }, [open]);
   return (
@@ -1758,9 +1774,7 @@ function VaultSettings({
             <div>
               <p className="text-[13px] font-medium">Déverrouillage biométrique</p>
               <p className="text-[11px] text-muted-foreground">
-                {bioReady
-                  ? "Utiliser l'empreinte ou le visage comme raccourci."
-                  : "Non disponible sur cet appareil."}
+                {biometricStatusMessage(bioStatus)}
               </p>
             </div>
             <input
