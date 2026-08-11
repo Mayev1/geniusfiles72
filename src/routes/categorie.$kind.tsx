@@ -38,6 +38,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { batchSummary, errorMessage } from "@/lib/errors/humanize";
 import { confirmCopy, progressLabel } from "@/lib/copy";
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
+import { isPackageEntry } from "@/lib/files/package";
+import { openPackageSheet } from "@/lib/files/package-sheet-store";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
 import { sortEntries } from "@/lib/files/sort";
