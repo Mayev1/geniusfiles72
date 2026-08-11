@@ -19,6 +19,7 @@ import {
   CREATE_FORMATS,
 } from "@/lib/files/archive";
 import { formatDate, formatSize, pathToString } from "@/lib/files/format";
+import { archiveFormatLabel } from "@/lib/files/package";
 import { useRoots } from "@/lib/fs/useRoots";
 import { BottomSheet, PrimaryButton, TextField } from "./BottomSheet";
 import { DestinationPicker } from "./DestinationPicker";
