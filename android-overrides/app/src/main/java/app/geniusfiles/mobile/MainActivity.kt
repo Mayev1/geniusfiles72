@@ -35,6 +35,10 @@ class MainActivity : BridgeActivity() {
         // and every file listing fails with "Plugin unavailable".
         registerPlugin(GeniusFilesNativePlugin::class.java)
         registerPlugin(GeniusFilesTransferPlugin::class.java)
+        // Biométrie du coffre-fort (AndroidX Biometric). Sans cet
+        // enregistrement, `window.Capacitor.Plugins.GeniusFilesBiometric`
+        // est absent et l'app annonce « non disponible » à tort.
+        registerPlugin(GeniusFilesBiometricPlugin::class.java)
         // Source de vérité unique côté Android : le mode nuit AppCompat est
         // aligné sur le choix persisté AVANT toute inflation. Le thème
         // DayNight, le splash (values-night), `windowLightStatusBar` et les
