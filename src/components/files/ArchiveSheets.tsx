@@ -331,7 +331,10 @@ export function ArchiveViewerSheet({
     >
       {info ? (
         <div className="mb-2 grid grid-cols-2 gap-1.5 text-[11px] text-muted-foreground">
-          <Info label="Format" value={info.format.toUpperCase()} />
+          <Info
+            label="Format"
+            value={archiveFormatLabel(entry?.name ?? "", info.format)}
+          />
           <Info label="Taille" value={formatSize(info.archiveSize)} />
           <Info label="Fichiers" value={String(info.fileCount)} />
           <Info label="Dossiers" value={String(info.dirCount)} />
