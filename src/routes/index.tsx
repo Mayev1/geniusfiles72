@@ -78,6 +78,8 @@ import { startTransfer, cancelTransfer } from "@/lib/transfers/manager";
 import { useTransferTask } from "@/lib/transfers/useTransfers";
 import { UniversalViewer, type ViewerAction } from "@/components/viewer/UniversalViewer";
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
+import { isPackageEntry, isInstallablePackage } from "@/lib/files/package";
+import { openPackageSheet } from "@/lib/files/package-sheet-store";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
 
