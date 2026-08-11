@@ -7,6 +7,7 @@ import { ScrollFeel } from "@/components/common/ScrollFeel";
 import { TransferTracker } from "@/components/jobs/TransferTracker";
 import { useReaderMode } from "@/lib/viewer/reader-mode";
 import { useInPickLayer } from "@/components/files/pick-layer-context";
+import { PackageSheetHost } from "@/components/files/PackageSheet";
 
 type NavItem = {
   to: string;
@@ -78,6 +79,9 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </div>
       </main>
       {inPick ? null : <PlayerHost />}
+      {/* Fiche paquet Android (APK / AAB / XAPK) : montée une seule fois,
+          partagée par tous les écrans qui listent des fichiers. */}
+      <PackageSheetHost />
       {/* Sensation de défilement native : résistance de bord sur le seul
           contenu + tirer pour actualiser (jamais en mode lecture). */}
       {reader || inPick ? null : <ScrollFeel />}
