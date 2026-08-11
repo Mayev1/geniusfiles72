@@ -34,6 +34,10 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Ouverture d'un .apk depuis le gestionnaire : Android exige cette
+         autorisation pour que l'application puisse demander l'installation
+         d'un paquet (l'utilisateur reste maître via « sources inconnues »). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <queries>
         <intent>
@@ -41,6 +45,10 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.android.package-archive" />
         </intent>
     </queries>
 
