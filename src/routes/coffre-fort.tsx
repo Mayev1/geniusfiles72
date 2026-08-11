@@ -1412,27 +1412,34 @@ function SortMenu({
         type="button"
         aria-label="Trier"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground hover:text-foreground"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="gf-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-muted-foreground hover:text-foreground"
       >
-        <ArrowUpDown className="h-4 w-4" />
+        <ArrowUpDown className="h-[18px] w-[18px]" />
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-surface shadow-soft">
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-30 mt-1.5 w-52 overflow-hidden rounded-2xl border border-border bg-surface shadow-soft"
+        >
           {options.map((o) => (
             <button
               key={o.key}
               type="button"
+              role="menuitemradio"
+              aria-checked={sort.key === o.key}
               onClick={() => {
                 onChange({
                   key: o.key,
                   order: sort.key === o.key ? (sort.order === "asc" ? "desc" : "asc") : "asc",
                 });
               }}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] hover:bg-secondary/60 ${
+              className={`flex w-full items-center gap-2.5 px-3.5 py-3 text-left text-[13.5px] hover:bg-secondary/60 ${
                 sort.key === o.key ? "text-primary" : "text-foreground"
               }`}
             >
-              <o.icon className="h-3.5 w-3.5" /> {o.label}
+              <o.icon className="h-4 w-4" /> {o.label}
               {sort.key === o.key ? (
                 <span className="ml-auto text-[10px] uppercase tracking-wide">{sort.order}</span>
               ) : null}
@@ -1456,32 +1463,36 @@ function FolderTile({
   onDelete: () => void;
 }) {
   return (
-    <div className="gf-card group relative flex items-center gap-3 p-3.5">
-      <button type="button" onClick={onOpen} className="flex flex-1 items-center gap-3 text-left">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/12 text-primary">
-          <Folder className="h-4 w-4" />
+    <div className="gf-card group relative flex items-center gap-2 p-2.5">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="gf-press flex min-h-12 flex-1 items-center gap-3 rounded-xl px-1 text-left"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+          <Folder className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium">{folder.name}</p>
-          <p className="text-[10.5px] text-muted-foreground">Dossier privé</p>
+          <p className="truncate text-[14px] font-medium">{folder.name}</p>
+          <p className="text-[12px] text-muted-foreground">Dossier privé</p>
         </div>
       </button>
-      <div className="flex flex-col gap-1 opacity-70 group-hover:opacity-100">
+      <div className="flex shrink-0 flex-col">
         <button
           type="button"
           aria-label="Renommer"
           onClick={onRename}
-          className="rounded p-1 text-muted-foreground hover:text-foreground"
+          className="gf-press flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
         >
-          <SquarePen className="h-3.5 w-3.5" />
+          <SquarePen className="h-4 w-4" />
         </button>
         <button
           type="button"
           aria-label="Supprimer"
           onClick={onDelete}
-          className="rounded p-1 text-muted-foreground hover:text-red-400"
+          className="gf-press flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-destructive"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -1517,27 +1528,28 @@ function ItemRow({
   };
   return (
     <div
-      className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
+      className={`flex items-center gap-2 px-2 py-1.5 transition-colors ${
         selected ? "bg-primary/10" : "hover:bg-secondary/40"
       }`}
       onPointerDown={startPress}
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
     >
       <button
         type="button"
         onClick={() => (anySelected ? onToggleSelect() : onOpen())}
-        className="flex flex-1 items-center gap-3 text-left"
+        className="gf-press flex min-h-14 flex-1 items-center gap-3 rounded-xl px-1.5 text-left"
       >
         <FileIcon kind={item.kind} path={item.vaultAbsolutePath ?? item.originalPath} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium">
+          <p className="truncate text-[14px] font-medium">
             {item.name}
             {item.favorite ? (
-              <Star className="ml-1 inline h-3 w-3 text-amber-400" fill="currentColor" />
+              <Star className="ml-1 inline h-3.5 w-3.5 text-amber-400" fill="currentColor" />
             ) : null}
           </p>
-          <p className="text-[10.5px] text-muted-foreground">
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
             {formatSize(item.size)} · {formatDate(item.addedAt)}
           </p>
         </div>
@@ -1546,9 +1558,9 @@ function ItemRow({
         type="button"
         aria-label="Actions"
         onClick={onMore}
-        className="rounded p-1 text-muted-foreground hover:text-foreground"
+        className="gf-press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-[18px] w-[18px]" />
       </button>
     </div>
   );
