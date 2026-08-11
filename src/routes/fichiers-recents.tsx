@@ -422,7 +422,8 @@ export function AddedFilesPage() {
       setDialog({ kind: "none" });
       switch (action) {
         case "open":
-          if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
+          if (isPackageEntry(f)) openPackageSheet({ parent, entry: f });
+          else if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
           else await openWithSystem(parent, f);
           break;
         case "openWith":
