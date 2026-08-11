@@ -1579,32 +1579,32 @@ function SelectionBar({
 }) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto max-w-[520px] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
-      <div className="glass-panel pointer-events-auto flex items-center gap-2 rounded-2xl border border-border-strong px-3 py-2 shadow-soft animate-in-up">
+      <div className="glass-panel pointer-events-auto flex items-center gap-2 rounded-3xl border border-border-strong px-2.5 py-2 shadow-soft animate-in-up">
         <button
           type="button"
           onClick={onClear}
           aria-label="Quitter la sélection"
-          className="rounded-lg border border-border bg-surface p-1.5 text-muted-foreground hover:text-foreground"
+          className="gf-press flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-muted-foreground hover:text-foreground"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-[18px] w-[18px]" />
         </button>
-        <span className="text-[12px] font-medium text-foreground">
+        <span className="min-w-0 truncate text-[13px] font-semibold text-foreground">
           {count} sélectionné{count > 1 ? "s" : ""}
         </span>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onRestore}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+            className="gf-press inline-flex h-11 items-center gap-1.5 rounded-2xl border border-border bg-surface px-3.5 text-[13px] font-medium text-foreground"
           >
-            <Undo2 className="h-3.5 w-3.5" /> Restaurer
+            <Undo2 className="h-4 w-4" /> Restaurer
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-400 hover:bg-red-500/20"
+            className="gf-press inline-flex h-11 items-center gap-1.5 rounded-2xl border border-destructive/30 bg-destructive/10 px-3.5 text-[13px] font-medium text-destructive"
           >
-            <Trash2 className="h-3.5 w-3.5" /> Supprimer
+            <Trash2 className="h-4 w-4" /> Supprimer
           </button>
         </div>
       </div>
