@@ -950,74 +950,96 @@ function VaultBrowser() {
 
   return (
     <AppShell>
-      <div className="flex flex-col gap-3">
-        {/* Header */}
-        <div className="gf-card flex items-center gap-3 p-3.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+      {/* En-tête soudé : enfant direct de `.gf-page`, donc jamais tiré par
+          le geste « tirer pour actualiser » (voir ScrollFeel). */}
+      <PageHeader
+        title={current ? current.name : "Coffre-fort"}
+        subtitle={
+          selectionCount > 0
+            ? `${selectionCount} sélectionné${selectionCount > 1 ? "s" : ""}`
+            : `${usage.count} élément${usage.count > 1 ? "s" : ""} · ${formatSize(usage.bytes)}`
+        }
+        eyebrow={current ? "Coffre-fort" : undefined}
+        leading={
+          <BackButton className="gf-press flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground hover:text-foreground" />
+        }
+        action={
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              aria-label="Nouveau dossier"
+              onClick={() => setNewFolderOpen(true)}
+              className="gf-press flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <FolderPlus className="h-[18px] w-[18px]" />
+            </button>
+            <button
+              type="button"
+              aria-label="Paramètres du coffre-fort"
+              onClick={() => setSettingsOpen(true)}
+              className="gf-press flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <Settings className="h-[18px] w-[18px]" />
+            </button>
+            <button
+              type="button"
+              aria-label="Verrouiller le coffre-fort"
+              onClick={() => {
+                lockSession("manual");
+              }}
+              className="gf-press flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <Lock className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+        }
+      />
+
+      {/* Contenu défilable — commence strictement sous l'en-tête. */}
+      <div className="flex flex-col gap-3 pt-3">
+        {/* Bandeau d'état du coffre */}
+        <div className="gf-card flex items-center gap-3 p-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xs">
             <Shield className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-semibold text-foreground">Coffre-fort</p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            <p className="text-[14px] font-semibold text-foreground">Espace privé chiffré</p>
+            <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
               {usage.count} élément{usage.count > 1 ? "s" : ""} · {formatSize(usage.bytes)}
+              {refreshing ? " · actualisation…" : ""}
             </p>
           </div>
-          <button
-            type="button"
-            aria-label="Paramètres du coffre-fort"
-            onClick={() => setSettingsOpen(true)}
-            className="rounded-full border border-border bg-surface p-2 text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Verrouiller"
-            onClick={() => {
-              lockSession("manual");
-            }}
-            className="rounded-full border border-border bg-surface p-2 text-muted-foreground hover:text-foreground"
-          >
-            <Lock className="h-4 w-4" />
-          </button>
         </div>
 
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1 overflow-x-auto text-[11px] text-muted-foreground">
-          <button
-            type="button"
-            onClick={() => setFolderId(null)}
-            className="rounded px-1.5 py-0.5 hover:text-foreground"
-          >
-            Coffre-fort
-          </button>
-          {path.map((f) => (
-            <span key={f.id} className="flex items-center gap-1">
-              <ChevronRight className="h-3 w-3 shrink-0" />
-              <button
-                type="button"
-                onClick={() => setFolderId(f.id)}
-                className="rounded px-1.5 py-0.5 hover:text-foreground"
-              >
-                {f.name}
-              </button>
-            </span>
-          ))}
-          {current ? (
+        {/* Fil d'Ariane */}
+        {path.length > 0 ? (
+          <div className="flex items-center gap-0.5 overflow-x-auto text-[12.5px] text-muted-foreground">
             <button
               type="button"
-              onClick={() => setFolderId(current.parentId)}
-              className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 hover:text-foreground"
+              onClick={() => setFolderId(null)}
+              className="gf-press shrink-0 rounded-xl px-2 py-1.5 hover:text-foreground"
             >
-              <ArrowLeft className="h-3 w-3" /> Retour
+              Coffre-fort
             </button>
-          ) : null}
-        </div>
+            {path.map((f) => (
+              <span key={f.id} className="flex shrink-0 items-center gap-0.5">
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                <button
+                  type="button"
+                  onClick={() => setFolderId(f.id)}
+                  className="gf-press rounded-xl px-2 py-1.5 hover:text-foreground"
+                >
+                  {f.name}
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
 
-        {/* Search + toolbar */}
+        {/* Recherche + tri */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               inputMode="search"
@@ -1028,8 +1050,18 @@ function VaultBrowser() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher dans le coffre-fort…"
-              className="w-full rounded-lg border border-border bg-surface py-2 pl-8 pr-2 text-[12px] text-foreground outline-none focus:border-primary"
+              className="h-11 w-full rounded-2xl bg-surface-2 pl-10 pr-10 text-[14px] text-foreground outline-none ring-1 ring-inset ring-transparent transition-shadow focus:ring-primary/60 placeholder:text-muted-foreground/70"
             />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Effacer la recherche"
+                className="gf-press absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
           <SortMenu
             sort={sort}
@@ -1040,7 +1072,8 @@ function VaultBrowser() {
           />
         </div>
 
-        <div className="-mt-1 flex items-center gap-2 text-[11px]">
+        {/* Filtres */}
+        <div className="flex items-center gap-2">
           <FilterChip
             active={!showFavorites && !query}
             icon={Folder}
@@ -1059,50 +1092,41 @@ function VaultBrowser() {
               setQuery("");
             }}
           />
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setNewFolderOpen(true)}
-              className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              <FolderPlus className="h-3.5 w-3.5" /> Dossier
-            </button>
-          </div>
         </div>
 
-        {/* Content */}
+        {/* Contenu */}
         {visibleFolders.length === 0 && visibleItems.length === 0 ? (
-          query || showFavorites ? (
-            <IllustratedEmptyState
-              id={query ? "search" : "favorites"}
-              description={
-                query
-                  ? "Essayez un autre terme, ou vérifiez l'orthographe."
-                  : "Marquez un fichier du coffre-fort d'une étoile pour le retrouver ici."
-              }
-            />
-          ) : (
-            <EmptyState
-              icon={LockKeyhole}
-              title="Coffre-fort vide"
-              description="Ajoutez des fichiers sensibles pour les chiffrer et les masquer du reste de l'application. Ils resteront sur cet appareil."
-              action={
-                !query && !showFavorites ? (
+          <div className="gf-appear flex min-h-[46vh] flex-col justify-center">
+            {query || showFavorites ? (
+              <IllustratedEmptyState
+                id={query ? "search" : "favorites"}
+                description={
+                  query
+                    ? "Essayez un autre terme, ou vérifiez l'orthographe."
+                    : "Marquez un fichier du coffre-fort d'une étoile pour le retrouver ici."
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={LockKeyhole}
+                title="Coffre-fort vide"
+                description="Ajoutez des fichiers sensibles pour les chiffrer et les masquer du reste de l'application. Ils resteront sur cet appareil."
+                action={
                   <button
                     type="button"
                     onClick={() => setAddPickerOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground"
+                    className="gf-press inline-flex h-12 items-center gap-2 rounded-2xl bg-primary px-5 text-[15px] font-semibold text-primary-foreground shadow-soft"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Ajouter des fichiers
+                    <Plus className="h-[18px] w-[18px]" /> Ajouter des fichiers
                   </button>
-                ) : undefined
-              }
-            />
-          )
+                }
+              />
+            )}
+          </div>
         ) : (
-          <>
+          <div className="gf-appear flex flex-col gap-3">
             {visibleFolders.length > 0 ? (
-              <>
+              <div className="flex flex-col gap-2">
                 <SectionHeader title="Dossiers" />
                 <ul className="grid grid-cols-2 gap-2">
                   {visibleFolders.map((f) => (
@@ -1116,18 +1140,14 @@ function VaultBrowser() {
                     </li>
                   ))}
                 </ul>
-              </>
+              </div>
             ) : null}
 
             {visibleItems.length > 0 ? (
-              <>
+              <div className="flex flex-col gap-2">
                 <SectionHeader
                   title={query ? "Résultats" : showFavorites ? "Favoris" : "Fichiers"}
-                  hint={
-                    !query && !showFavorites
-                      ? `${visibleItems.length} élément${visibleItems.length > 1 ? "s" : ""}`
-                      : undefined
-                  }
+                  hint={`${visibleItems.length} élément${visibleItems.length > 1 ? "s" : ""}`}
                 />
                 <ul className="gf-card flex flex-col divide-y divide-border/60 overflow-hidden">
                   {visibleItems.map((item) => (
@@ -1144,24 +1164,24 @@ function VaultBrowser() {
                     </li>
                   ))}
                 </ul>
-              </>
+              </div>
             ) : null}
-          </>
+          </div>
         )}
-
-        {/* Foundations tiles */}
-        {null}
       </div>
 
-      {/* FAB — add files/folders */}
-      <button
-        type="button"
-        onClick={() => setAddPickerOpen(true)}
-        aria-label="Ajouter au coffre-fort"
-        className="fixed bottom-24 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated transition-transform active:scale-95"
-      >
-        <Plus className="h-5 w-5" />
-      </button>
+      {/* FAB — ajout de fichiers (masqué pendant la sélection pour ne pas
+          chevaucher la barre d'actions). */}
+      {selectionCount === 0 ? (
+        <button
+          type="button"
+          onClick={() => setAddPickerOpen(true)}
+          aria-label="Ajouter au coffre-fort"
+          className="gf-press fixed bottom-24 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      ) : null}
 
       {/* Selection bar */}
       {selectionCount > 0 ? (
