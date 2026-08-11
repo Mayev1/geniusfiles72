@@ -73,12 +73,20 @@ export function EntryActionSheet({
                   label={pkgKind === "apk" ? "Installer l'application" : "Ouvrir le paquet"}
                   onClick={() => onAction("open")}
                 />
-                <ActionRow
-                  icon={PackageOpen}
-                  label="Explorer le contenu"
-                  onClick={() => onAction("openArchive")}
-                />
-                <ActionRow icon={Package} label="Extraire…" onClick={() => onAction("extract")} />
+                {canReadArchive(entry) ? (
+                  <>
+                    <ActionRow
+                      icon={PackageOpen}
+                      label="Explorer le contenu"
+                      onClick={() => onAction("openArchive")}
+                    />
+                    <ActionRow
+                      icon={Package}
+                      label="Extraire…"
+                      onClick={() => onAction("extract")}
+                    />
+                  </>
+                ) : null}
                 <div className="my-1 h-px bg-border/40" />
               </>
             ) : null}
