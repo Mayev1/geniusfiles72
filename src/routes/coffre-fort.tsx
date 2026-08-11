@@ -589,9 +589,16 @@ function LockScreen({ onUnlocked, onReset }: { onUnlocked: () => void; onReset: 
   );
 
   const tryBiometric = async () => {
-    const ok = await verifyBiometric();
-    if (ok) onUnlocked();
-    else setError("Authentification biométrique refusée");
+    const r = await verifyBiometric();
+    if (r.ok) {
+      onUnlocked();
+      return;
+    }
+    if (r.status === "cancelled") {
+      setError(null);
+      return;
+    }
+    setError(biometricStatusMessage(r.status));
   };
 
   return (
