@@ -1713,13 +1713,17 @@ function VaultSettings({
   const [background, setBackground] = useState(() => loadLockOnBackground());
   const [bioOn, setBioOn] = useState(() => isBiometricEnabled());
   const [bioReady, setBioReady] = useState(false);
+  const [bioStatus, setBioStatus] = useState<BiometricStatus>("unknown");
   const [askWipe, setAskWipe] = useState(false);
   useEffect(() => {
     if (open) {
       setAutoLock(loadAutoLockMs());
       setBackground(loadLockOnBackground());
       setBioOn(isBiometricEnabled());
-      isBiometricAvailable().then(setBioReady);
+      getBiometricAvailability().then((r) => {
+        setBioReady(r.available);
+        setBioStatus(r.status);
+      });
     }
   }, [open]);
   return (
@@ -1770,9 +1774,7 @@ function VaultSettings({
             <div>
               <p className="text-[13px] font-medium">Déverrouillage biométrique</p>
               <p className="text-[11px] text-muted-foreground">
-                {bioReady
-                  ? "Utiliser l'empreinte ou le visage comme raccourci."
-                  : "Non disponible sur cet appareil."}
+                {biometricStatusMessage(bioStatus)}
               </p>
             </div>
             <input
