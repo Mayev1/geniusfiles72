@@ -83,6 +83,8 @@ import {
   wipeVault,
 } from "@/lib/vault/api";
 import {
+  biometricStatusMessage,
+  getBiometricAvailability,
   getVaultMethod,
   isVaultConfigured,
   isBiometricAvailable,
@@ -93,6 +95,7 @@ import {
   verifyBiometric,
   verifySecret,
 } from "@/lib/vault/auth";
+import type { BiometricStatus } from "@/lib/vault/auth";
 import {
   AUTO_LOCK_OPTIONS,
   loadAutoLockMs,
@@ -242,11 +245,15 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
   const [secret, setSecret] = useState("");
   const [confirmValue, setConfirmValue] = useState("");
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState<BiometricStatus>("unknown");
   const [biometricOpt, setBiometricOpt] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    isBiometricAvailable().then(setBiometricAvailable);
+    getBiometricAvailability().then((r) => {
+      setBiometricAvailable(r.available);
+      setBiometricStatus(r.status);
+    });
   }, []);
 
   const validSecret =
@@ -331,9 +338,7 @@ function SetupWizard({ onDone }: { onDone: () => void }) {
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-medium">Déverrouillage biométrique</p>
                 <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">
-                  {biometricAvailable
-                    ? "Utiliser votre empreinte digitale ou votre visage comme raccourci."
-                    : "Non disponible sur cet appareil — le code reste requis."}
+                  {biometricStatusMessage(biometricStatus)}
                 </p>
               </div>
               <input
