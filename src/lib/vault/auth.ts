@@ -90,48 +90,142 @@ export function isBiometricEnabled(): boolean {
   return safeGet()?.biometricEnabled ?? false;
 }
 
-/** Best-effort probe for native biometric support (Android). Never throws. */
-export async function isBiometricAvailable(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  try {
-    const cap = (
-      window as unknown as {
-        Capacitor?: { Plugins?: Record<string, { isAvailable?: () => Promise<unknown> }> };
-      }
-    ).Capacitor;
-    const plugin = cap?.Plugins?.NativeBiometric;
-    if (plugin?.isAvailable) {
-      const r = (await plugin.isAvailable()) as { isAvailable?: boolean } | boolean;
-      if (typeof r === "boolean") return r;
-      return !!r?.isAvailable;
-    }
-  } catch {
-    /* fall through */
+/**
+ * Statuts renvoyés par le pont natif `GeniusFilesBiometric`.
+ *
+ * Ils distinguent les vraies indisponibilités (matériel absent) des
+ * situations réparables par l'utilisateur (aucune empreinte enregistrée,
+ * capteur temporairement verrouillé…) afin que l'UI n'affiche plus
+ * « non disponible sur cet appareil » dans tous les cas.
+ */
+export type BiometricStatus =
+  | "available"
+  | "success"
+  | "none_enrolled"
+  | "no_hardware"
+  | "hw_unavailable"
+  | "security_update_required"
+  | "unsupported"
+  | "lockout"
+  | "cancelled"
+  | "failed"
+  | "web"
+  | "unknown";
+
+export type BiometricAvailability = {
+  available: boolean;
+  status: BiometricStatus;
+  message?: string;
+};
+
+type BiometricPlugin = {
+  isAvailable?: () => Promise<{ isAvailable?: boolean; status?: string; message?: string }>;
+  verify?: (opts: {
+    title?: string;
+    reason?: string;
+    cancelLabel?: string;
+  }) => Promise<{ verified?: boolean; status?: string; message?: string }>;
+};
+
+function biometricPlugin(): BiometricPlugin | null {
+  if (typeof window === "undefined") return null;
+  const cap = (window as unknown as { Capacitor?: { Plugins?: Record<string, unknown> } })
+    .Capacitor;
+  return (cap?.Plugins?.GeniusFilesBiometric as BiometricPlugin | undefined) ?? null;
+}
+
+function asStatus(raw: string | undefined, fallback: BiometricStatus): BiometricStatus {
+  const known: BiometricStatus[] = [
+    "available",
+    "success",
+    "none_enrolled",
+    "no_hardware",
+    "hw_unavailable",
+    "security_update_required",
+    "unsupported",
+    "lockout",
+    "cancelled",
+    "failed",
+    "web",
+    "unknown",
+  ];
+  return known.includes(raw as BiometricStatus) ? (raw as BiometricStatus) : fallback;
+}
+
+/** Message utilisateur adapté au statut réel du capteur. */
+export function biometricStatusMessage(status: BiometricStatus): string {
+  switch (status) {
+    case "available":
+    case "success":
+      return "Utiliser votre empreinte digitale ou votre visage comme raccourci.";
+    case "none_enrolled":
+      return "Aucune empreinte enregistrée — ajoutez-en une dans les réglages Android.";
+    case "no_hardware":
+      return "Cet appareil n'a pas de capteur biométrique — le code reste requis.";
+    case "hw_unavailable":
+      return "Capteur biométrique momentanément indisponible — réessayez plus tard.";
+    case "security_update_required":
+      return "Une mise à jour de sécurité Android est nécessaire pour la biométrie.";
+    case "unsupported":
+      return "Biométrie non prise en charge par cette version d'Android.";
+    case "lockout":
+      return "Trop de tentatives — la biométrie est temporairement bloquée par Android.";
+    case "cancelled":
+      return "Authentification biométrique annulée.";
+    case "failed":
+      return "Authentification biométrique échouée — utilisez votre code.";
+    case "web":
+      return "Disponible uniquement dans l'application Android.";
+    default:
+      return "Statut biométrique inconnu — le code reste requis.";
   }
-  return false;
+}
+
+/** Sonde complète du capteur (Android). Ne lève jamais d'exception. */
+export async function getBiometricAvailability(): Promise<BiometricAvailability> {
+  const plugin = biometricPlugin();
+  if (!plugin?.isAvailable) return { available: false, status: "web" };
+  try {
+    const r = await plugin.isAvailable();
+    const status = asStatus(r?.status, r?.isAvailable ? "available" : "unknown");
+    return {
+      available: !!r?.isAvailable && status === "available",
+      status,
+      message: r?.message,
+    };
+  } catch (e) {
+    return {
+      available: false,
+      status: "unknown",
+      message: e instanceof Error ? e.message : undefined,
+    };
+  }
+}
+
+/** Raccourci booléen conservé pour les appels existants. */
+export async function isBiometricAvailable(): Promise<boolean> {
+  return (await getBiometricAvailability()).available;
 }
 
 /**
- * Ask the platform to run a biometric prompt. Returns true on success.
- * When no plugin is present, resolves to false so the caller can fall
- * back to the PIN/password prompt.
+ * Lance l'invite biométrique native. Renvoie le statut détaillé pour que
+ * l'appelant distingue une annulation, un verrouillage et un échec.
  */
-export async function verifyBiometric(reason = "Déverrouiller le coffre-fort"): Promise<boolean> {
-  if (typeof window === "undefined") return false;
+export async function verifyBiometric(
+  reason = "Déverrouiller le coffre-fort",
+): Promise<{ ok: boolean; status: BiometricStatus; message?: string }> {
+  const plugin = biometricPlugin();
+  if (!plugin?.verify) return { ok: false, status: "web" };
   try {
-    const cap = (
-      window as unknown as {
-        Capacitor?: {
-          Plugins?: Record<string, { verifyIdentity?: (opts: unknown) => Promise<void> }>;
-        };
-      }
-    ).Capacitor;
-    const plugin = cap?.Plugins?.NativeBiometric;
-    if (!plugin?.verifyIdentity) return false;
-    await plugin.verifyIdentity({ reason, title: "GeniusFiles" });
-    return true;
-  } catch {
-    return false;
+    const r = await plugin.verify({
+      title: "GeniusFiles",
+      reason,
+      cancelLabel: "Utiliser le code",
+    });
+    const status = asStatus(r?.status, r?.verified ? "success" : "failed");
+    return { ok: !!r?.verified, status, message: r?.message };
+  } catch (e) {
+    return { ok: false, status: "failed", message: e instanceof Error ? e.message : undefined };
   }
 }
 
