@@ -127,7 +127,7 @@ function PackageSheet({ req }: { req: PackageRequest | null }) {
   return (
     <BottomSheet open onClose={closePackageSheet} title={packageLongLabel(kind)}>
       <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">
-        <FileIcon entry={entry} size={44} />
+        <FileIcon kind={entry.kind ?? "other"} size="md" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-foreground">{entry.name}</p>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
