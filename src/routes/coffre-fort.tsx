@@ -732,10 +732,25 @@ function VaultBrowser() {
   const [deleteCandidates, setDeleteCandidates] = useState<VaultItem[] | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const refresh = useCallback(() => setTick((n) => n + 1), []);
 
-  /* Tirer pour actualiser : relit le contenu du coffre déverrouillé. */
-  usePullToRefresh(refresh);
+  /* Tirer pour actualiser : relit réellement l'index du coffre déverrouillé
+     (éléments, dossiers, favoris, usage) sans démonter la page — seuls les
+     mémos dépendant de `tick` sont recalculés, le layout reste stable. */
+  const pullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      refresh();
+      /* Laisse React appliquer le recalcul avant de retirer l'indicateur. */
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh]);
+
+  usePullToRefresh(pullRefresh);
 
   useEffect(() => {
     const on = () => refresh();
