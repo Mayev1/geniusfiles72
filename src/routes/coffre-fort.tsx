@@ -44,6 +44,8 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { usePullToRefresh } from "@/lib/gestures/pull-refresh";
+import { PageHeader } from "@/components/common/PageHeader";
+import { BackButton } from "@/components/navigation/BackButton";
 import { BACK_PRIORITY, useBackHandler } from "@/lib/navigation/back-stack";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -1368,13 +1370,14 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 transition-colors ${
+      aria-pressed={active}
+      className={`gf-press inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition-colors ${
         active
           ? "border-primary/60 bg-primary/12 text-primary"
           : "border-border bg-surface text-muted-foreground hover:text-foreground"
       }`}
     >
-      <Icon className="h-3 w-3" /> {label}
+      <Icon className="h-4 w-4" /> {label}
     </button>
   );
 }
