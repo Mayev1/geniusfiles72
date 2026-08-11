@@ -1463,38 +1463,38 @@ function FolderTile({
   onDelete: () => void;
 }) {
   return (
-    <div className="gf-card group relative flex items-center gap-2 p-2.5">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="gf-press flex min-h-12 flex-1 items-center gap-3 rounded-xl px-1 text-left"
-      >
+    <div className="gf-card relative flex flex-col p-2.5">
+      <div className="flex items-center justify-between">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
           <Folder className="h-[18px] w-[18px]" />
         </span>
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-medium">{folder.name}</p>
-          <p className="text-[12px] text-muted-foreground">Dossier privé</p>
+        <div className="flex shrink-0 items-center">
+          <button
+            type="button"
+            aria-label={`Renommer ${folder.name}`}
+            onClick={onRename}
+            className="gf-press flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
+          >
+            <SquarePen className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={`Supprimer ${folder.name}`}
+            onClick={onDelete}
+            className="gf-press flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
-      </button>
-      <div className="flex shrink-0 flex-col">
-        <button
-          type="button"
-          aria-label="Renommer"
-          onClick={onRename}
-          className="gf-press flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
-        >
-          <SquarePen className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          aria-label="Supprimer"
-          onClick={onDelete}
-          className="gf-press flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-destructive"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
       </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="gf-press mt-1.5 min-h-11 w-full rounded-xl px-1 text-left"
+      >
+        <p className="truncate text-[14px] font-medium">{folder.name}</p>
+        <p className="truncate text-[12px] text-muted-foreground">Dossier privé</p>
+      </button>
     </div>
   );
 }
