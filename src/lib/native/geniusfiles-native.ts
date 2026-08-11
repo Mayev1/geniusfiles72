@@ -185,6 +185,11 @@ type Plugin = {
   emptyTrash: () => Promise<{ deleted: number; failed: number }>;
   shareFiles: (opts: { paths: string[] }) => Promise<void>;
   openFile: (opts: { path: string }) => Promise<{ opened: boolean }>;
+  /* Paquets Android (APK) — installation réelle via l'installateur système. */
+  canInstallPackages?: () => Promise<{ allowed: boolean }>;
+  openInstallPermissionSettings?: () => Promise<{ screen: string }>;
+  packageInfo?: (opts: { path: string }) => Promise<NativePackageInfo>;
+  installPackage?: (opts: { path: string }) => Promise<{ started: boolean }>;
   archiveInfo: () => Promise<{
     supportedCreate: string[];
     supportedRead: string[];
