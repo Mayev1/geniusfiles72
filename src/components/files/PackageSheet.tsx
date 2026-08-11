@@ -119,7 +119,8 @@ function PackageSheet({ req }: { req: PackageRequest | null }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [phase, launchInstall]);
 
-  if (!req || !entry || !kind) return <BottomSheet open={false} onClose={closePackageSheet} children={null} />;
+  if (!req || !entry || !kind)
+    return <BottomSheet open={false} onClose={closePackageSheet} children={null} />;
 
   const invalid = kind === "apk" && info !== null && info.valid === false;
   const incompatible = kind === "apk" && info?.valid === true && info.compatible === false;
@@ -224,8 +225,8 @@ function ApkBody({
     return (
       <>
         <Notice tone="warn" icon={ShieldAlert} title="Autorisation Android requise">
-          Android doit autoriser GeniusFiles à installer des applications. Ouvrez le réglage, activez
-          l'autorisation puis revenez : l'installation reprendra automatiquement.
+          Android doit autoriser GeniusFiles à installer des applications. Ouvrez le réglage,
+          activez l'autorisation puis revenez : l'installation reprendra automatiquement.
         </Notice>
         <div className="mt-3">
           <PrimaryButton onClick={onOpenSettings}>Ouvrir le réglage Android</PrimaryButton>
