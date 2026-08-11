@@ -16,6 +16,7 @@ import type { FileEntry } from "@/lib/files/types";
 import { FileIcon } from "./FileIcon";
 import { BottomSheet } from "./BottomSheet";
 import { canReadArchive } from "@/lib/files/archive";
+import { packageKindOf } from "@/lib/files/package";
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
 
 export type EntryAction =
@@ -51,8 +52,9 @@ export function EntryActionSheet({
   onClose: () => void;
   onAction: (action: EntryAction) => void;
 }) {
-  const isArchive = entry ? canReadArchive(entry) : false;
-  const showOpen = entry ? canOpenInViewer(entry) && canPreview(entry) : false;
+  const pkgKind = entry ? packageKindOf(entry) : null;
+  const isArchive = entry ? canReadArchive(entry) && !pkgKind : false;
+  const showOpen = entry ? !pkgKind && canOpenInViewer(entry) && canPreview(entry) : false;
   const showOpenWith = entry ? !entry.isDirectory : false;
   const showEditAudio = entry ? !entry.isDirectory && entry.kind === "audio" : false;
   return (
@@ -64,6 +66,30 @@ export function EntryActionSheet({
             <p className="min-w-0 flex-1 truncate text-[13px] font-semibold">{entry.name}</p>
           </div>
           <div className="flex flex-col">
+            {pkgKind ? (
+              <>
+                <ActionRow
+                  icon={Package}
+                  label={pkgKind === "apk" ? "Installer l'application" : "Ouvrir le paquet"}
+                  onClick={() => onAction("open")}
+                />
+                {canReadArchive(entry) ? (
+                  <>
+                    <ActionRow
+                      icon={PackageOpen}
+                      label="Explorer le contenu"
+                      onClick={() => onAction("openArchive")}
+                    />
+                    <ActionRow
+                      icon={Package}
+                      label="Extraire…"
+                      onClick={() => onAction("extract")}
+                    />
+                  </>
+                ) : null}
+                <div className="my-1 h-px bg-border/40" />
+              </>
+            ) : null}
             {isArchive ? (
               <>
                 <ActionRow

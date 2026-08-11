@@ -185,6 +185,11 @@ type Plugin = {
   emptyTrash: () => Promise<{ deleted: number; failed: number }>;
   shareFiles: (opts: { paths: string[] }) => Promise<void>;
   openFile: (opts: { path: string }) => Promise<{ opened: boolean }>;
+  /* Paquets Android (APK) — installation réelle via l'installateur système. */
+  canInstallPackages?: () => Promise<{ allowed: boolean }>;
+  openInstallPermissionSettings?: () => Promise<{ screen: string }>;
+  packageInfo?: (opts: { path: string }) => Promise<NativePackageInfo>;
+  installPackage?: (opts: { path: string }) => Promise<{ started: boolean }>;
   archiveInfo: () => Promise<{
     supportedCreate: string[];
     supportedRead: string[];
@@ -486,5 +491,109 @@ export async function listNativeDirectory(
       return { ok: false, reason: "not_found", message };
     }
     return { ok: false, reason: "error", message };
+  }
+}
+
+/* ---------- Paquets Android (APK / AAB / XAPK) ---------- */
+
+/**
+ * Métadonnées d'un paquet Android lues via `PackageManager
+ * .getPackageArchiveInfo` : seule l'entrée AndroidManifest.xml du fichier
+ * est analysée, jamais l'intégralité de l'APK.
+ */
+export type NativePackageInfo = {
+  path: string;
+  size: number;
+  mtime: number;
+  valid: boolean;
+  label?: string;
+  packageName?: string;
+  versionName?: string;
+  versionCode?: number;
+  minSdk?: number;
+  targetSdk?: number;
+  compatible?: boolean;
+  installed?: boolean;
+  installedVersionName?: string;
+  error?: string;
+};
+
+export type InstallOutcome =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "unavailable" | "needs_permission" | "not_found" | "denied" | "invalid" | "error";
+      message: string;
+    };
+
+/** L'autorisation « installer des applications inconnues » est-elle accordée ? */
+export async function canInstallPackages(): Promise<boolean> {
+  const p = plugin();
+  if (!p?.canInstallPackages) return false;
+  try {
+    const { allowed } = await p.canInstallPackages();
+    return !!allowed;
+  } catch {
+    return false;
+  }
+}
+
+/** Ouvre le réglage Android correspondant (sources inconnues). */
+export async function openInstallPermissionSettings(): Promise<boolean> {
+  const p = plugin();
+  if (!p?.openInstallPermissionSettings) return false;
+  try {
+    await p.openInstallPermissionSettings();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Lit les métadonnées d'un APK (léger : manifeste uniquement). */
+export async function readPackageInfo(path: string): Promise<NativePackageInfo | null> {
+  const p = plugin();
+  if (!p?.packageInfo) return null;
+  try {
+    return await p.packageInfo({ path });
+  } catch {
+    return null;
+  }
+}
+
+/** Lance l'installateur système Android pour un .apk réel. */
+export async function installNativePackage(path: string): Promise<InstallOutcome> {
+  const p = plugin();
+  if (!p?.installPackage) {
+    return {
+      ok: false,
+      reason: "unavailable",
+      message: "L'installation d'applications n'est disponible que sur Android.",
+    };
+  }
+  try {
+    await p.installPackage({ path });
+    return { ok: true };
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    if (/NEEDS_PERMISSION/i.test(raw))
+      return {
+        ok: false,
+        reason: "needs_permission",
+        message: "Android doit d'abord autoriser GeniusFiles à installer des applications.",
+      };
+    if (/NOT_FOUND/i.test(raw))
+      return { ok: false, reason: "not_found", message: "Ce fichier n'existe plus." };
+    if (/NOT_INSTALLABLE/i.test(raw))
+      return { ok: false, reason: "invalid", message: "Ce fichier n'est pas un APK installable." };
+    if (/NO_INSTALLER/i.test(raw))
+      return {
+        ok: false,
+        reason: "error",
+        message: "Aucun installateur de paquets n'est disponible sur cet appareil.",
+      };
+    if (/DENIED/i.test(raw))
+      return { ok: false, reason: "denied", message: friendlyError("DENIED") };
+    return { ok: false, reason: "error", message: friendlyError(raw) };
   }
 }

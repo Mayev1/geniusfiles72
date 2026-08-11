@@ -19,6 +19,7 @@ import {
   CREATE_FORMATS,
 } from "@/lib/files/archive";
 import { formatDate, formatSize, pathToString } from "@/lib/files/format";
+import { archiveFormatLabel } from "@/lib/files/package";
 import { useRoots } from "@/lib/fs/useRoots";
 import { BottomSheet, PrimaryButton, TextField } from "./BottomSheet";
 import { DestinationPicker } from "./DestinationPicker";
@@ -331,7 +332,7 @@ export function ArchiveViewerSheet({
     >
       {info ? (
         <div className="mb-2 grid grid-cols-2 gap-1.5 text-[11px] text-muted-foreground">
-          <Info label="Format" value={info.format.toUpperCase()} />
+          <Info label="Format" value={archiveFormatLabel(entry?.name ?? "", info.format)} />
           <Info label="Taille" value={formatSize(info.archiveSize)} />
           <Info label="Fichiers" value={String(info.fileCount)} />
           <Info label="Dossiers" value={String(info.dirCount)} />

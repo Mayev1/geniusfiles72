@@ -38,6 +38,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { batchSummary, errorMessage } from "@/lib/errors/humanize";
 import { confirmCopy, progressLabel } from "@/lib/copy";
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
+import { isPackageEntry } from "@/lib/files/package";
+import { openPackageSheet } from "@/lib/files/package-sheet-store";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
 import { sortEntries } from "@/lib/files/sort";
@@ -520,7 +522,8 @@ export function CategoryPage({ kind }: { kind: CategoryKind }) {
 
   const openEntry = useCallback((entry: FileEntry) => {
     const f = entry as CategoryFile;
-    if (canPreview(f)) setDialog({ kind: "viewer", entryName: f.name });
+    if (isPackageEntry(f)) openPackageSheet({ parent: parentOf(f), entry: f });
+    else if (canPreview(f)) setDialog({ kind: "viewer", entryName: f.name });
     else setDialog({ kind: "actions", entry: f });
   }, []);
 
@@ -636,7 +639,8 @@ export function CategoryPage({ kind }: { kind: CategoryKind }) {
       setDialog({ kind: "none" });
       switch (action) {
         case "open":
-          if (canPreview(f)) setDialog({ kind: "viewer", entryName: f.name });
+          if (isPackageEntry(f)) openPackageSheet({ parent, entry: f });
+          else if (canPreview(f)) setDialog({ kind: "viewer", entryName: f.name });
           else await openWithSystem(parent, f);
           break;
         case "openWith":
@@ -711,7 +715,8 @@ export function CategoryPage({ kind }: { kind: CategoryKind }) {
    */
   const quickOpenEntry = useCallback((entry: FileEntry) => {
     const f = entry as CategoryFile;
-    if (canOpenInViewer(f)) setDialog({ kind: "viewer", entryName: f.name });
+    if (isPackageEntry(f)) openPackageSheet({ parent: parentOf(f), entry: f });
+    else if (canOpenInViewer(f)) setDialog({ kind: "viewer", entryName: f.name });
     else setDialog({ kind: "actions", entry: f });
   }, []);
   const viewerIndex = useMemo(() => {

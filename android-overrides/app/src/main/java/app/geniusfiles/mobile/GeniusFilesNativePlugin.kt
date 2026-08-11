@@ -890,6 +890,133 @@ class GeniusFilesNativePlugin : Plugin() {
         return map.getMimeTypeFromExtension(ext) ?: "*/*"
     }
 
+    // -------- Paquets Android (APK / AAB / XAPK) --------
+    //
+    // Un APK est techniquement un ZIP, mais fonctionnellement un paquet
+    // installable : ces méthodes déclenchent l'installateur système réel
+    // (ACTION_VIEW + content:// via FileProvider), vérifient l'autorisation
+    // « installer des applications inconnues » et lisent le manifeste du
+    // paquet SANS lire l'intégralité du fichier (getPackageArchiveInfo ne
+    // parse que l'entrée AndroidManifest.xml).
+
+    private fun canRequestInstalls(): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try { context.packageManager.canRequestPackageInstalls() } catch (_: Throwable) { false }
+        } else true
+
+    @PluginMethod
+    fun canInstallPackages(call: PluginCall) {
+        call.resolve(JSObject().apply { put("allowed", canRequestInstalls()) })
+    }
+
+    @PluginMethod
+    fun openInstallPermissionSettings(call: PluginCall) {
+        val pkgUri = Uri.parse("package:" + context.packageName)
+        val candidates = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            listOf(
+                "unknown_app_sources_app" to
+                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply { data = pkgUri },
+                "unknown_app_sources" to Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES),
+                "app_details" to
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = pkgUri },
+            )
+        } else {
+            listOf(
+                "security_settings" to Intent(Settings.ACTION_SECURITY_SETTINGS),
+                "app_details" to
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = pkgUri },
+            )
+        }
+        val opened = openFirstAvailableSettings(candidates)
+        if (opened == null) call.reject("NO_SETTINGS", "réglage introuvable")
+        else call.resolve(JSObject().apply { put("screen", opened) })
+    }
+
+    @PluginMethod
+    fun packageInfo(call: PluginCall) {
+        val path = call.getString("path") ?: return call.reject("BAD_ARGS", "path required")
+        if (!hasAllFilesAccess()) return call.reject("DENIED", "storage permission required")
+        val f = File(path)
+        if (!f.exists() || f.isDirectory) return call.reject("NOT_FOUND", "file not found")
+        val res = JSObject().apply {
+            put("path", path)
+            put("size", f.length())
+            put("mtime", f.lastModified())
+        }
+        try {
+            val pm = context.packageManager
+            val info: PackageInfo? = pm.getPackageArchiveInfo(path, 0)
+            if (info == null) {
+                res.put("valid", false)
+                return call.resolve(res)
+            }
+            val appInfo = info.applicationInfo
+            if (appInfo != null) {
+                appInfo.sourceDir = path
+                appInfo.publicSourceDir = path
+                try {
+                    res.put("label", appInfo.loadLabel(pm).toString())
+                } catch (_: Throwable) { /* libellé indisponible */ }
+                res.put("minSdk", if (Build.VERSION.SDK_INT >= 24) appInfo.minSdkVersion else 0)
+                res.put("targetSdk", appInfo.targetSdkVersion)
+                res.put(
+                    "compatible",
+                    Build.VERSION.SDK_INT < 24 || appInfo.minSdkVersion <= Build.VERSION.SDK_INT,
+                )
+            }
+            res.put("valid", true)
+            res.put("packageName", info.packageName)
+            res.put("versionName", info.versionName ?: "")
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.longVersionCode
+            } else {
+                @Suppress("DEPRECATION") info.versionCode.toLong()
+            }
+            res.put("versionCode", code)
+            // Le paquet est-il déjà installé ? (comparaison de version)
+            try {
+                val installed = pm.getPackageInfo(info.packageName, 0)
+                res.put("installed", true)
+                res.put("installedVersionName", installed.versionName ?: "")
+            } catch (_: Throwable) {
+                res.put("installed", false)
+            }
+            call.resolve(res)
+        } catch (e: Throwable) {
+            res.put("valid", false)
+            res.put("error", e.message ?: "parse failed")
+            call.resolve(res)
+        }
+    }
+
+    @PluginMethod
+    fun installPackage(call: PluginCall) {
+        val path = call.getString("path") ?: return call.reject("BAD_ARGS", "path required")
+        if (!hasAllFilesAccess()) return call.reject("DENIED", "storage permission required")
+        val f = File(path)
+        if (!f.exists() || f.isDirectory) return call.reject("NOT_FOUND", "file not found")
+        if (!f.name.lowercase().endsWith(".apk")) {
+            return call.reject("NOT_INSTALLABLE", "seuls les fichiers .apk sont installables")
+        }
+        if (!canRequestInstalls()) return call.reject("NEEDS_PERMISSION", "install permission required")
+        try {
+            val authority = context.packageName + ".fileprovider"
+            val uri: Uri = FileProvider.getUriForFile(context, authority, f)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val target = activity ?: context
+            target.startActivity(intent)
+            call.resolve(JSObject().apply { put("started", true) })
+        } catch (e: android.content.ActivityNotFoundException) {
+            call.reject("NO_INSTALLER", "installateur système indisponible")
+        } catch (e: Throwable) {
+            call.reject("IO_FAILED", e.message)
+        }
+    }
+
     // -------- Base64 I/O --------
 
     @PluginMethod

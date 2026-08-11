@@ -37,6 +37,8 @@ import { useTransferTask } from "@/lib/transfers/useTransfers";
 import { UniversalViewer, type ViewerAction } from "@/components/viewer/UniversalViewer";
 import { IllustratedEmptyState } from "@/components/ui/IllustratedEmptyState";
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
+import { isPackageEntry } from "@/lib/files/package";
+import { openPackageSheet } from "@/lib/files/package-sheet-store";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
 import { batchSummary, errorMessage } from "@/lib/errors/humanize";
@@ -327,13 +329,15 @@ export function AddedFilesPage() {
 
   const openEntry = useCallback((entry: FileEntry) => {
     const f = entry as AddedFile;
-    if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
+    if (isPackageEntry(f)) openPackageSheet({ parent: parentOf(f), entry: f });
+    else if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
     else setDialog({ kind: "actions", entry: f });
   }, []);
 
   const quickOpenEntry = useCallback((entry: FileEntry) => {
     const f = entry as AddedFile;
-    if (canOpenInViewer(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
+    if (isPackageEntry(f)) openPackageSheet({ parent: parentOf(f), entry: f });
+    else if (canOpenInViewer(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
     else setDialog({ kind: "actions", entry: f });
   }, []);
 
@@ -418,7 +422,8 @@ export function AddedFilesPage() {
       setDialog({ kind: "none" });
       switch (action) {
         case "open":
-          if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
+          if (isPackageEntry(f)) openPackageSheet({ parent, entry: f });
+          else if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
           else await openWithSystem(parent, f);
           break;
         case "openWith":

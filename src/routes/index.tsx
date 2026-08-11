@@ -78,6 +78,8 @@ import { startTransfer, cancelTransfer } from "@/lib/transfers/manager";
 import { useTransferTask } from "@/lib/transfers/useTransfers";
 import { UniversalViewer, type ViewerAction } from "@/components/viewer/UniversalViewer";
 import { canOpenInViewer, canPreview } from "@/lib/viewer/kinds";
+import { isPackageEntry } from "@/lib/files/package";
+import { openPackageSheet } from "@/lib/files/package-sheet-store";
 import { openWithSystem } from "@/lib/viewer/openWith";
 import { audioEditorSearch } from "@/lib/audio/routes";
 
@@ -543,6 +545,9 @@ export function FilesPage() {
       setRecents(loadRecents());
       if (entry.isDirectory) {
         navigateTo({ rootId: path.rootId, segments });
+      } else if (isPackageEntry(entry)) {
+        // APK / AAB / XAPK : paquet Android, jamais l'écran d'extraction.
+        openPackageSheet({ parent: path, entry, onExplore: openArchive });
       } else if (canReadArchive(entry)) {
         openArchive(entry);
       } else if (canPreview(entry)) {
@@ -569,6 +574,10 @@ export function FilesPage() {
       if (entry.isDirectory) {
         // Pendant une sélection, la vignette d'un dossier permet d'y entrer.
         if (pick) navigateTo({ rootId: path.rootId, segments: [...path.segments, entry.name] });
+        return;
+      }
+      if (isPackageEntry(entry)) {
+        openPackageSheet({ parent: path, entry, onExplore: openArchive });
         return;
       }
       if (canReadArchive(entry)) {
