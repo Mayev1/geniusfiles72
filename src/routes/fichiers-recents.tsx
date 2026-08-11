@@ -327,13 +327,15 @@ export function AddedFilesPage() {
 
   const openEntry = useCallback((entry: FileEntry) => {
     const f = entry as AddedFile;
-    if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
+    if (isPackageEntry(f)) openPackageSheet({ parent: parentOf(f), entry: f });
+    else if (canPreview(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
     else setDialog({ kind: "actions", entry: f });
   }, []);
 
   const quickOpenEntry = useCallback((entry: FileEntry) => {
     const f = entry as AddedFile;
-    if (canOpenInViewer(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
+    if (isPackageEntry(f)) openPackageSheet({ parent: parentOf(f), entry: f });
+    else if (canOpenInViewer(f)) setDialog({ kind: "viewer", entryId: addedId(f) });
     else setDialog({ kind: "actions", entry: f });
   }, []);
 
